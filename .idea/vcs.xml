@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/DEVSimPy" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/TRPES-simulator" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/TwoBody/twobodyproblem-simulation-python-gui" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/py_epi_sim" vcs="Git" />
+  </component>
+</project>
