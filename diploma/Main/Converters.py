@@ -1,22 +1,26 @@
 # get_ipython().run_line_magic('matplotlib', 'qt')
 
-def runTimeConv(machine, total_ptime, shift):
-    total_proc_time = sum(total_ptime)
+def duration_converter(total_ptime):
+    if type(total_ptime) is dict:
+        total_proc_time = sum(total_ptime.values())
+    elif type(total_ptime) is list:
+        total_proc_time = sum(total_ptime)
+    else:
+        total_proc_time = total_ptime
 
-    # Total Time
-    # p_total_time_m = total_proc_time / 60
-    p_total_time_h = total_proc_time / (60 * 60)
+    days = int(total_proc_time / 86400)
+    hours = int((total_proc_time - (days * 86400)) // 3600)
+    minutes = int(total_proc_time % 3600 / 60)
+    seconds = int((total_proc_time % 3600) % 60)
+    return '{:02d}d {:02d}h {:02d}m {:02d}s'.format(days, hours, minutes, seconds)
+    # return '{:02d}:{:02d}:{:02d}:{:02d}'.format(days, hours, minutes, seconds)
 
-    # In a shift
-    time_per_shift = total_proc_time / shift  # time per shift
-    # print(m_per_day)
-    p_in_h = time_per_shift // (60*60)
-    p_in_mod_m = (time_per_shift % (60*60))
 
-    # print((total_proc_time * 24) % sim_time)
-    # print(machine + ' Process Time in a shift: %d ' % round(p_in_h) + 'hours and %d minutes.' % round(p_in_mod_m))
-    # print( machine + ' Total Process Time in %d shifts ' % shift + 'in H: %d hours ' % round(p_total_time_h) + 'and in S: %d seconds' % total_proc_time)
-    return str(round(p_in_h)) + 'h ' + str(round(p_in_mod_m)) + 'm'
+def double_time_print(stop_times):
+    if stop_times <= 9:
+        return '0' + str(stop_times)
+    else:
+        return str(stop_times)
 
 
 '''
