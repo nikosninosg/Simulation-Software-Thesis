@@ -339,54 +339,81 @@ def welcomeScreen():
 # print(v1, v2, v3, a, b, c)
 
 
-def outroScreen(CANS_PER_HOUR, SHIFT, produced_cans):
-    """Welcome Screen"""
+def outroScreen(SIM_TIME_, PRODUCTION_SPEED_, PASTEUR_OUTPUT_, EXPECTED_CANS_, D_PERC_SB_, D_PERC_STOP_, F_PERC_SB_, F_PERC_STOP_, P_PERC_SB_, P_PERC_STOP_):
     root = Tk()
     root.geometry("900x700")
-    bg_colour = '#D2D2D2'
+
+    bg_colour = '#D6EBFE'
     root.configure(bg=bg_colour)
     # Title
-    Label(root, anchor=CENTER, text='Στατιστικά', font="Arial 16 bold", bg='light green', pady=7).grid(row=0, sticky=EW, columnspan=5)
+    Label(root, anchor=CENTER, text='Δείκτες απόδοσης γραμμής', font="Arial 16 bold", bg='#4d94ff', pady=7).grid(row=0, sticky=EW, columnspan=5)
 
-    Label(root, anchor=CENTER, text="Παραγόμενο προϊόν: "+str(produced_cans)+' / '+str(CANS_PER_HOUR * SHIFT * 8)+' σε '+str(SHIFT)+' βάρδιες', font="Arial 16 bold", bg=bg_colour, pady=10).grid(row=1, sticky=S, columnspan=5)
+    # Total Time Simulation
+    Label(root, text="Συνολική Διάρκεια Simulation: " + str(duration_converter(SIM_TIME_)), font="Arial 14", bg=bg_colour, pady=10).grid(row=1, sticky=W, columnspan=5)
+    # Production Speed
+    Label(root, text="Ταχύτητα παραγωγής της γραμμής: " + str(PRODUCTION_SPEED_) + " cans per second", font="Arial 14", bg=bg_colour, pady=10).grid(row=3, sticky=W, columnspan=5)
+    # Produced products
+    Label(root, text="Προϊόντα που παράχθηκαν: " + str(PASTEUR_OUTPUT_), font="Arial 14", bg=bg_colour, pady=10).grid(row=4, sticky=W, columnspan=5)
+    # Expected Products
+    Label(root, text="Προϊόντα που αναμέναμε να παραχθούν: " + str(EXPECTED_CANS_), font="Arial 14", bg=bg_colour, pady=10).grid(row=5, sticky=W, columnspan=5)
+    # Overall Production Efficiency
+    Label(root, text="Συνολική απόδοση παραγωγής: " + str(round((PASTEUR_OUTPUT_/EXPECTED_CANS_)*100, 2))+'%', font="Arial 14", bg=bg_colour, pady=10).grid(row=6, sticky=W, columnspan=5)
 
-    # Ποσοστά
-    Label(root, anchor=CENTER, text="Ποσοστό αιτίας", font="Arial 16 bold", bg='#9DF4EB', pady=7).grid(row=3, sticky=EW, pady=20, columnspan=4)
+    # Τίτλος για τα ποσοστά
+    Label(root, text="Καταστάσεις Μηχανημάτων", font="Arial 16 bold", bg='#4d94ff', pady=7).grid(row=10, sticky=EW, pady=20, columnspan=8)
+    Label(root, text='MACHINE', font="Arial 14 bold underline", bg=bg_colour, fg='black').grid(column=0, row=11, padx=30)
+    Label(root, text='RUN', font="Arial 14 bold underline", bg=bg_colour, fg='#77D82A').grid(column=1, row=11, padx=30)
+    Label(root, text='STAND_BY', font="Arial 14 bold underline", bg=bg_colour, fg='#ffff1a').grid(column=2, row=11, padx=30)
+    Label(root, text='STOP', font="Arial 14 bold underline", bg=bg_colour, fg='#BE0000').grid(column=3, row=11, padx=30)
 
-    Label(root, text='MACHINE', font="Arial 14 bold underline", bg=bg_colour, fg='white').grid(column=0, row=4, padx=30)
-    Label(root, text='RUN', font="Arial 14 bold underline", bg=bg_colour, fg='#77D82A').grid(column=1, row=4, padx=30)
-    Label(root, text='STAND_BY', font="Arial 14 bold underline", bg=bg_colour, fg='#F1F162').grid(column=2, row=4, padx=30)
-    Label(root, text='STOP', font="Arial 14 bold underline", bg=bg_colour, fg='#BE0000').grid(column=3, row=4, padx=30)
+    def percentage(row, machine_name, perc_run, perc_standby, perc_stop):
+        Label(root, text=machine_name, font="Arial 14", bg=bg_colour).grid(column=0, row=row, padx=30, pady=15)
+        Label(root, text=str(perc_run)+'%', font="Arial 14", bg=bg_colour).grid(column=1, row=row, padx=30, pady=15)
+        Label(root, text=str(perc_standby)+'%', font="Arial 14", bg=bg_colour).grid(column=2, row=row, padx=30, pady=15)
+        Label(root, text=str(perc_stop)+'%', font="Arial 14", bg=bg_colour).grid(column=3, row=row, padx=30, pady=15)
+        # Analysis Button
+        Button(root, text=machine_name + ' Analysis', height=0, width=15, font="Arial 12 bold", bd='5', bg='light green',
+               activebackground='cyan', command=root.destroy).grid(row=row, column=4, padx=0, pady=15, sticky=W)
 
-    def percentage_rca(row, machine_name, perc_run, perc_standby, perc_stop):
-        Label(root, text=machine_name, font="Arial 14 bold", bg=bg_colour).grid(column=0, row=row, padx=30, pady=5)
-        Label(root, text=str(perc_run)+'%', font="Arial 14 bold", bg=bg_colour).grid(column=1, row=row, padx=30, pady=5)
-        Label(root, text=str(perc_standby)+'%', font="Arial 14 bold", bg=bg_colour).grid(column=2, row=row, padx=30, pady=5)
-        Label(root, text=str(perc_stop)+'%', font="Arial 14 bold", bg=bg_colour).grid(column=3, row=row, padx=30, pady=5)
-
-    percentage_rca(5, 'DEPALL', 10, 20, 40)
-    percentage_rca(6, 'FILLER', 10, 20, 40)
-    percentage_rca(7, 'PASTEUR', 10, 20, 40)
-
-    # Breakdowns
-    Label(root, anchor=CENTER, text="Breakdowns", font="Arial 16 bold", bg='#9DF4EB', pady=7).grid(row=9, sticky=EW, pady=40, columnspan=4)
-    Label(root, text='MACHINE', font="Arial 14 bold underline", bg=bg_colour).grid(column=0, row=10, padx=30)
-    Label(root, text='TIMES', font="Arial 14 bold underline", bg=bg_colour).grid(column=1, row=10, padx=30)
-    Label(root, text='DURATION', font="Arial 14 bold underline", bg=bg_colour).grid(column=2, row=10, padx=30)
-
-    def breakdown(row, machine_name, dictionary):
-        for key, value in dictionary.items():
-            Label(root, text=machine_name, font="Arial 14 bold", bg=bg_colour).grid(column=0, row=row+key, padx=30, pady=5)
-            Label(root, text=key, font="Arial 14 bold", bg=bg_colour).grid(column=1, row=row+key, padx=30, pady=5)
-            Label(root, text=duration_converter(value), font="Arial 14 bold", bg=bg_colour).grid(column=2, row=row+key, padx=30, pady=5)
-
-    word_freq = {1: 5116, 2: 23454, 3: 4223, 4: 73238, 5: 143241}
-
-    breakdown(11, 'DEPALL', word_freq)
-
-    breakdown(11 + 1 + int(len(word_freq)), 'FILLER', word_freq)
+    # Depall
+    # D_PERC_SB_ = machine_duration_conv_to_perc(D_PERC_SB_, SIM_TIME_)
+    # D_PERC_STOP_ = machine_duration_conv_to_perc(D_PERC_STOP_, SIM_TIME_)
+    percentage(13, 'DEPALL', round(100 - (D_PERC_SB_ + D_PERC_STOP_), 2), D_PERC_SB_, D_PERC_STOP_)
+    # Filler
+    # F_PERC_SB_ = machine_duration_conv_to_perc(F_PERC_SB_, SIM_TIME_)
+    # F_PERC_STOP_ = machine_duration_conv_to_perc(F_PERC_STOP_, SIM_TIME_)
+    percentage(14, 'FILLER', round(100 - (F_PERC_SB_ + F_PERC_STOP_), 2), F_PERC_SB_, F_PERC_STOP_)
+    # Pasteur
+    # P_PERC_SB_ = machine_duration_conv_to_perc(P_PERC_SB_, SIM_TIME_)
+    # P_PERC_STOP_ = machine_duration_conv_to_perc(P_PERC_STOP_, SIM_TIME_)
+    percentage(15, 'PASTEUR', round(100 - (P_PERC_SB_ + P_PERC_STOP_), 2), P_PERC_SB_, P_PERC_STOP_)
 
     root.mainloop()
 
 
-# outroScreen(1000, 2, 100)
+# outroScreen()
+
+'''
+    # Breakdowns
+    Label(root, anchor=CENTER, text="Breakdowns", font="Arial 16 bold", bg='#9DF4EB', pady=7).grid(row=9, sticky=EW, pady=40, columnspan=4)
+    Label(root, text='MACHINE', font="Arial 14 bold underline", bg=bg_colour).grid(column=0, row=14, padx=30)
+    Label(root, text='TIMES', font="Arial 14 bold underline", bg=bg_colour).grid(column=1, row=14, padx=30)
+    Label(root, text='DURATION', font="Arial 14 bold underline", bg=bg_colour).grid(column=2, row=14, padx=30)
+
+def breakdown(row, machine_name, dictionary):
+    for key, value in dictionary.items():
+        Label(root, text=machine_name, font="Arial 14 bold", bg=bg_colour).grid(column=0, row=row + key, padx=30,
+                                                                                pady=5)
+        Label(root, text=key, font="Arial 14 bold", bg=bg_colour).grid(column=1, row=row + key, padx=30, pady=5)
+        Label(root, text=duration_converter(value), font="Arial 14 bold", bg=bg_colour).grid(column=2, row=row + key,
+                                                                                             padx=30, pady=5)
+
+
+word_freq = {1: 5116, 2: 23454, 3: 4223, 4: 73238, 5: 143241}
+
+# OEE + ' ('+str((produced_cans/(CANS_PER_HOUR * SHIFT * 8))*100)+'%)'
+
+breakdown(11, 'DEPALL', word_freq)
+
+breakdown(11 + 1 + int(len(word_freq)), 'FILLER', word_freq)
+'''

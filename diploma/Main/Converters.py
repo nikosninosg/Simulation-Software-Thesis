@@ -23,6 +23,35 @@ def double_time_print(stop_times):
         return str(stop_times)
 
 
+def machine_duration_conv_to_perc(DURATION, SIM_TIME):
+    print(type(DURATION))
+    if type(DURATION) is dict:
+        # if dict is empty
+        if not DURATION:
+            total_sum = 0
+        elif isinstance(DURATION.values(), float):
+            total_sum = DURATION.values()
+        else:
+            total_sum = sum(DURATION.values())
+
+    else:
+        # if list is empty
+        if not DURATION:
+            total_sum = 0
+            # if list has one number
+        elif isinstance(DURATION, float):
+            total_sum = DURATION
+        else:
+            total_sum = sum(DURATION)
+
+    # print(round(total_sum * 100 / SIM_TIME, 2))
+    return round(total_sum*100/SIM_TIME, 2)
+
+
+# print(machine_duration_conv_to_perc({1: 5000, 2: 5000, 4: 10000, 5: 10000}, 60000))
+# print(machine_duration_conv_to_perc([5000.887959562, 5000.6456645654, 10990.099931239, 10000], 60000))
+
+
 '''
 TOTAL_PTIME = [10000, 18000]
 SHIFTS = 1

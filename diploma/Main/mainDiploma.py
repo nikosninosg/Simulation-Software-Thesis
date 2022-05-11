@@ -24,12 +24,12 @@ check_csv()
 
 # Parameters
 # DEPALL_BRAKE_PROB, FILLER_BRAKE_PROB, PASTEUR_BRAKE_PROB, AUTO_BRAKE_VAR, HOURS, DT = welcomeScreen()
-AUTO_BRAKE_VAR = 1
+AUTO_BRAKE_VAR = 0
 # Ακρίβεια αποτελεσμάτων - παρακολούθησης | Ακρίβεια δευτερολέπτου
-DT = 200  # in seconds
+DT = 100  # in seconds
 
 # SIMULATION RUN TIME
-HOURS = 16  # Simulation time in shifts
+HOURS = 4  # Simulation time in shifts
 SIM_TIME = HOURS * 60 * 60  # Simulation time in seconds
 
 times = SIM_TIME / DT  # Num of rows in csv
@@ -40,7 +40,8 @@ CANS_PER_HOUR = 60000  # cans want to produce per hour
 PRODUCTION_SPEED = round(CANS_PER_HOUR / 3600, 2)  # cans per second
 print("Production Speed: {0} cans/second and: {1} cans/shift".format(PRODUCTION_SPEED, CANS_PER_HOUR * 8))
 
-
+# Expected Produced Cans
+EXPECTED_CANS = CANS_PER_HOUR * HOURS
 print('----------------------------------')
 
 # ---EMPTY CANS---
@@ -60,7 +61,7 @@ depall_output = 1  # Πόσο προϊόν εξάγει μετά την επεξ
 depall_ptime = depall_output / DEPALL_SPEED  # Depall Process Time
 MTBF_depall = 31.03  # standard error se min (MTTF)
 # status
-depall_status = 'orange'
+depall_status = 'green'
 depall_description = "Έναρξη παραγωγής"
 
 # ---FILLER---
@@ -77,7 +78,7 @@ filler_output = filler_input  # Πόσο προϊόν εξάγει μετά τη
 filler_ptime = filler_output / FILLER_SPEED  # Filler Process Time
 MTBF_filler = 5.34  # standard error se min (MTTF)
 # status
-filler_status = 'orange'
+filler_status = 'green'
 filler_description = "Έναρξη παραγωγής"
 
 # ---PASTEUR---
@@ -95,39 +96,52 @@ pasteur_batch_serve_time = 30  # seconds
 pasteur_ptime = 1800  # Pasteur Process Time 30 minutes
 MTBF_pasteur = 25.22  # standard error se min (MTTF)
 # status
-pasteur_status = 'yellow'
+pasteur_status = 'green'
 pasteur_description = "Έναρξη παραγωγής"
 
 # --- RCA VARIABLES ---
-# Depall
-VAR_STOP_D = True
+# Depall KPIs
 DEPALL_IS_BROKEN = False
-DEPALL_RUN_DURATION = {}
+# D-Run
 DEPALL_RUN_TIMES = 1
-DEPALL_STANDBY_DURATION = {}
+DEPALL_RUN_DURATION = []
+# D-Stand
 DEPALL_STANDBY_TIMES = 0
-DEPALL_STOP_DURATION = {}
+DEPALL_STANDBY_DURATION = []
+# D-Stop
+DEPALL_STOP_FLAG = True
 DEPALL_STOP_TIMES = 0
+DEPALL_STOP_DURATION = {}
 
-# Filler
-VAR_STOP_F = True
+
+# Filler KPIs
 FILLER_IS_BROKEN = False
-FILLER_RUN_DURATION = {}
+# F-Run
 FILLER_RUN_TIMES = 1
-FILLER_STANDBY_DURATION = {}
+FILLER_RUN_DURATION = []
+# F-Stand
 FILLER_STANDBY_TIMES = 0
-FILLER_STOP_DURATION = {}
+FILLER_STANDBY_DURATION = []
+FILLER_STANDBY_FLAG = False  # Για την προς τα εμπρός εκτέλεση
+# F-Stop
+FILLER_STOP_FLAG = True
 FILLER_STOP_TIMES = 0
+FILLER_STOP_DURATION = {}
 
-# Pasteur
-VAR_STOP_P = True
+# Pasteur KPIs
 PASTEUR_IS_BROKEN = False
-PASTEUR_RUN_DURATION = {}
+# P-Run
 PASTEUR_RUN_TIMES = 1
-PASTEUR_STANDBY_DURATION = {}
+PASTEUR_RUN_DURATION = []
+# P-Stand
 PASTEUR_STANDBY_TIMES = 0
-PASTEUR_STOP_DURATION = {}
+PASTEUR_STANDBY_DURATION = []
+PASTEUR_STANDBY_FLAG = False
+# P-Stop
+PASTEUR_STOP_FLAG = True
 PASTEUR_STOP_TIMES = 0
+PASTEUR_STOP_DURATION = {}
+
 
 # ---Machine Breakdown---
 # Breakdown Probability
@@ -196,23 +210,23 @@ def auto_brake_machine():
 
 def manual_break_and_repair_machine(machine_name):
     """Εντοπισμός σταματήματος σε μηχάνημα και έναρξη εργασίας επισκευής μηχανήματος"""
-    global depall_status, filler_status, pasteur_status
 
-    # Set Status
-    if machine_name == 'DEPALL':
-        print("Depall break pressed")
-        can_pack_line.depall_gen.interrupt()
+    if AUTO_BRAKE_VAR == 0:
+        # Set Status
+        if machine_name == 'DEPALL':
+            print("Depall break pressed")
+            can_pack_line.depall_gen.interrupt()
 
-    elif machine_name == 'FILLER':
-        print("Filler break pressed")
-        can_pack_line.filler_gen.interrupt()
+        elif machine_name == 'FILLER':
+            print("Filler break pressed")
+            can_pack_line.filler_gen.interrupt()
 
-    elif machine_name == 'PASTEUR':
-        print("Pasteur break pressed")
-        can_pack_line.pasteur_gen.interrupt()
+        elif machine_name == 'PASTEUR':
+            print("Pasteur break pressed")
+            can_pack_line.pasteur_gen.interrupt()
 
-    else:
-        print("Κανένα  απο τα 3 if")
+        else:
+            print("Κανένα  απο τα 3 if")
 
     print('%d: ' % env.now + "Breakdown Detected in Machine: " + machine_name)
     env.timeout(1)  # 1 time unit to detect breakdown
@@ -238,9 +252,15 @@ class CanPackLine(object):
         self.depallCans = simpy.Container(env, capacity=filler_capacity, init=initial_depallCans)
         self.depallCanControl = env.process(self.depall_can_stock_control())
 
+        # DEPALL - FILLER CONVEYOR
+        self.dfControl = env.process(self.depall_filler_conveyor_control())
+
         # FILLER
         self.filledCans = simpy.Container(env, capacity=pasteur_capacity, init=initial_filledCans)
         self.fillerCanControl = env.process(self.filler_batch_buffer())
+
+        # FILLER - PASTEUR CONVEYOR
+        self.fpControl = env.process(self.filler_pasteur_conveyor_control())
 
         # PASTEUR
         self.pastCans = simpy.Container(env, init=initial_pastCans)
@@ -250,6 +270,8 @@ class CanPackLine(object):
         self.depall_gen = env.process(depall())
         self.filler_gen = env.process(filler())
         self.pasteur_gen = env.process(pasteur())
+
+        # Status & Variable Function Monitoring
         self.status_monitoring_gen = env.process(status_monitoring())
 
         # Automated Breakdown
@@ -258,15 +280,15 @@ class CanPackLine(object):
     def depall_can_stock_control(self):
         """Depall Batch: Δεν πρέπει να πέσει κάτω απο depall_batch κουτιά για να μη σταματήσει να λειτουργεί"""
         global depall_status, depall_description, DEPALL_STANDBY_TIMES, DEPALL_STANDBY_DURATION
+
         yield env.timeout(0)
 
         while True:
-            if self.emptyCans.level <= depall_critical_buffer:  # level < 5000
-                depall_standby_start = env.now
+            if self.emptyCans.level < depall_critical_buffer:  # level < 5000
                 # Set Depall Buffer Status
-                DEPALL_STANDBY_TIMES += 1
-                depall_status = Status.yellow.name
-                depall_description = Status.yellow.value
+                # DEPALL_STANDBY_TIMES += 1
+                # depall_status = Status.yellow.name
+                # depall_description = Status.yellow.value
 
                 print('%.2f: ' % env.now + '\x1b[0;30;44m' + 'Έναρξη Εισαγωγής Παλέτας.' + '\x1b[0m')
                 print('%.2f: ' % env.now + 'Empty Cans level = {0}'.format(self.emptyCans.level))
@@ -279,21 +301,56 @@ class CanPackLine(object):
                 yield can_pack_line.emptyCans.put(depall_input)
                 print('%.2f: ' % env.now + 'New empty cans stock is {0}'.format(self.emptyCans.level))
                 print('%.2f: ' % env.now + '\x1b[0;30;44m' + 'Τέλος Εισαγωγής παλέτας' + '\x1b[0m')
-                depall_standby_finish = env.now
-                DEPALL_STANDBY_DURATION[DEPALL_STANDBY_TIMES] = depall_standby_finish - depall_standby_start
+                # depall_standby_finish = env.now
+                # DEPALL_STANDBY_DURATION[DEPALL_STANDBY_TIMES] = depall_standby_finish - depall_standby_start
 
             else:
                 yield env.timeout(2)  # Κάθε 2 sec ελέγχει την πρώτη ύλη
 
+    def depall_filler_conveyor_control(self):
+        """ IF D-F Conveyor is filled, StandBy Depall process until Filler = Run"""
+        global depall_status, depall_description, DEPALL_RUN_TIMES, DEPALL_STANDBY_TIMES, DEPALL_STANDBY_DURATION
+        global filler_status
+
+        depall_standby_start = 0
+        df_flag = False
+
+        while True:
+            yield env.timeout(1)
+            if not df_flag and self.depallCans.level == filler_capacity and filler_status != Status.green.name:
+                "Αν η μεταφορική γεμίσει και το επόμενο μηχάνημα είναι standby (απο άλλο μηχάνημα - μεταφορική) ή stop: γίνε standby"
+                depall_standby_start = env.now
+                # Set Depall Status
+                depall_status = Status.yellow.name
+                depall_description = Status.yellow.value
+                yield env.timeout(0)
+                print('%.2f: ' % env.now + 'Η μεταφορική Depall - Filler είναι γεμάτη' + '\x1b[0m')
+                df_flag = True
+
+            elif df_flag and depall_status == Status.green.name:
+                "Μόλις βγει απο το standby αυξάνεται κατά 1"
+                DEPALL_RUN_TIMES += 1
+                DEPALL_STANDBY_TIMES += 1
+                DEPALL_STANDBY_DURATION.append(env.now - depall_standby_start)
+                df_flag = False
+
+            else:
+                yield env.timeout(0)
+
     def filler_batch_buffer(self):
         """Filler Batch. Στόχος: να μη σταματήσει ποτέ να λειτουργεί ο filler"""
         global filler_status, filler_description, FILLER_STANDBY_TIMES, FILLER_STANDBY_DURATION
+        global FILLER_STANDBY_FLAG
+
         yield env.timeout(depall_ptime + filler_ptime + 4)
 
         while True:
             if self.depallCans.level < filler_critical_buffer:  # level < 1
                 filler_standby_start = env.now
-                FILLER_STANDBY_TIMES += 1
+
+                if FILLER_STANDBY_FLAG:
+                    FILLER_STANDBY_TIMES += 1
+                    FILLER_STANDBY_FLAG = False
 
                 # Set Filler Buffer Status
                 filler_status = Status.yellow.name
@@ -309,64 +366,96 @@ class CanPackLine(object):
 
                 # print('%d: ' % env.now + '\x1b[0;30;46m' + 'Ο χειριστής Ενημερώθηκε!' + '\x1b[0m')
                 yield env.timeout(1)
-                filler_standby_finish = env.now
-                FILLER_STANDBY_DURATION[FILLER_STANDBY_TIMES] = filler_standby_finish - filler_standby_start
+                # Stand by απο το Depall
+                if depall_status == Status.red.name:
+                    FILLER_STANDBY_DURATION.append(env.now - filler_standby_start)
 
             else:
-                yield env.timeout(1)  # Κάθε 1 sec ελέγχει την παραγωγή
+                yield env.timeout(depall_ptime)  # Κάθε depall_ptime sec ελέγχει την παραγωγή
+
+    def filler_pasteur_conveyor_control(self):
+        """ IF F-P Conveyor is filled, StandBy Depall & Filler processes  until Pasteur = Run"""
+        global filler_status, filler_description, FILLER_RUN_TIMES, FILLER_STANDBY_TIMES, FILLER_STANDBY_DURATION
+        global pasteur_status
+
+        filler_standby_start = 0
+        fp_flag = False
+
+        while True:
+            yield env.timeout(1)
+            if not fp_flag and self.filledCans.level == pasteur_capacity and pasteur_status != Status.green.name:
+                "Αν η μεταφορική γεμίσει και το επόμενο μηχάνημα είναι standby (απο άλλο μηχάνημα - μεταφορική) ή stop: γίνε standby"
+                filler_standby_start = env.now
+                # Set Filler Status
+                filler_status = Status.yellow.name
+                filler_description = Status.yellow.value
+                yield env.timeout(0)
+                print('%.2f: ' % env.now + 'Η μεταφορική Filler - Pasteur είναι γεμάτη' + '\x1b[0m')
+                fp_flag = True
+
+            elif fp_flag and filler_status == Status.green.name:
+                "Μόλις βγει απο το standby αυξάνεται κατά 1"
+                FILLER_RUN_TIMES += 1
+                FILLER_STANDBY_TIMES += 1
+                # Stand by from Pasteur
+                FILLER_STANDBY_DURATION.append(env.now - filler_standby_start)
+                fp_flag = False
+
+            else:
+                yield env.timeout(0)
 
     def pasteur_batch_buffer(self):
         """Pasteur Batch. O Pasteur πρέπει να παίρνει ανα 1..600 τα κουτιά"""
         global pasteur_status, pasteur_description, PASTEUR_STANDBY_TIMES, PASTEUR_STANDBY_DURATION
+        global PASTEUR_STANDBY_FLAG
+
         yield env.timeout(depall_ptime + filler_ptime + 9)
+
         while True:
             # Pasteurize 1 to 600 cans
             if self.filledCans.level < pasteur_min_input:
+                pasteur_standby_start = env.now
+
+                if PASTEUR_STANDBY_FLAG:
+                    PASTEUR_STANDBY_TIMES += 1
+                    PASTEUR_STANDBY_FLAG = False
+
                 # Set Status
                 pasteur_status = Status.yellow.name
                 pasteur_description = Status.yellow.value
 
-                pasteur_standby_start = env.now
-                PASTEUR_STANDBY_TIMES += 1
-
                 print('%.2f: ' % env.now + '\x1b[0;30;46m' + 'Pasteur: Ενημέρωση Συστήματος.' + '\x1b[0m')
-                print('%.2f: ' % env.now + 'Filled Cans stock = {0} bellow critical level < {1} at {2}'.format(
-                    self.filledCans.level, pasteur_critical_buffer, env.now))
-
-                # displayAlert("O Pasteur έχει τεθεί σε κατάσταση Stand By (Status = ORANGE).\n Αιτία: Δεν έχει κουτιά να παράξει.", env.now)
+                print('%.2f: ' % env.now + 'Filled Cans stock = {0} bellow critical level < {1} at {2}'.format(self.filledCans.level, pasteur_critical_buffer, env.now))
 
                 # Περίμενε μέχρι να παράξουν όλοι οι προηγούμενοι
                 # yield env.timeout(depall_ptime + filler_ptime + 9)
-                if self.filledCans.level > 1:
-                    # Production Started
-                    pasteur_standby_finish = env.now
-                    pass
-                else:
-                    # Wait until find product
-                    pasteur_standby_finish = env.now
 
                 yield env.timeout(1)
-                PASTEUR_STANDBY_DURATION[PASTEUR_STANDBY_TIMES] = pasteur_standby_finish - pasteur_standby_start
+                if depall_status == Status.red.name or filler_status == Status.red.name:
+                    PASTEUR_STANDBY_DURATION.append(env.now - pasteur_standby_start)
+
             else:
-                yield env.timeout(depall_ptime + filler_ptime + 4)  # Κάθε x sec ελέγχει την παραγωγή
+                # yield env.timeout(depall_ptime + filler_ptime + 4)  # Κάθε x sec ελέγχει την παραγωγή
+                yield env.timeout(6)
 
 
 def depall():
     """Διεργασία του μηχανήματος Depall"""
     global depall_status, depall_description, current_depall_level
-    global VAR_STOP_D, DEPALL_RUN_TIMES, DEPALL_RUN_DURATION, DEPALL_STOP_TIMES, DEPALL_STOP_DURATION, DEPALL_IS_BROKEN
+    global DEPALL_RUN_DURATION, DEPALL_STOP_TIMES, DEPALL_STOP_DURATION, DEPALL_STOP_FLAG, DEPALL_IS_BROKEN
+    global FILLER_STANDBY_FLAG, PASTEUR_STANDBY_FLAG
+
     while True:
         try:
             if can_pack_line.emptyCans.level >= depall_batch and not DEPALL_IS_BROKEN:
-                yield env.timeout(0.01)  # Τα βάζει ακαριαία η μεταφορική RD
+                depall_run_start = env.now
+                yield env.timeout(0)  # Τα βάζει ακαριαία η μεταφορική RD
                 depall_status = Status.green.name
                 depall_description = Status.green.value
-                DEPALL_RUN_TIMES += 1
-                depall_run_start = env.now
 
                 print('%.2f: ' % env.now + Fore.BLUE + "Depall: ζητά {0} κουτιά για να επεξεργαστεί τη στιγμή {1}".format(depall_batch, env.now) + Fore.RESET)
 
-                # παίρνει 500 cans απο τα emptyCan για να τα επεξεργαστεί (Process: Depalletization)
+                # Παίρνει 500 cans απο τα emptyCan για να τα επεξεργαστεί (Process: Depalletization)
                 yield can_pack_line.emptyCans.get(depall_input)
                 print('%.2f: ' % env.now + Fore.BLUE + "Empty Cans Before proc: %d" % can_pack_line.emptyCans.level + Fore.RESET)
                 print('%.2f: ' % env.now + Fore.BLUE + "Depall Cans Before Proc: %d" % can_pack_line.depallCans.level + Fore.RESET)
@@ -378,7 +467,6 @@ def depall():
                     depall_status = Status.green.name
                     depall_description = Status.green.value
 
-                    # DEPALL_RUN_DURATION.append(depall_ptime)
                     # Επεξεργάζεται τα κουτιά για χρόνο ίσο με depall_ptime
                     yield env.timeout(depall_ptime)
                     yield can_pack_line.depallCans.put(depall_output)
@@ -388,11 +476,11 @@ def depall():
                 print('%.2f: ' % env.now + Fore.BLUE + "Empty Cans After proc: %d" % can_pack_line.emptyCans.level + Fore.RESET)
                 print('%.2f: ' % env.now + Fore.BLUE + "Depall Cans After Proc: %d" % can_pack_line.depallCans.level + Fore.RESET)
 
-                depall_run_finish = env.now
-                DEPALL_RUN_DURATION[DEPALL_RUN_TIMES] = depall_run_finish - depall_run_start
+                if DEPALL_STOP_FLAG:
+                    DEPALL_RUN_DURATION.append(env.now - depall_run_start)
 
             else:
-                yield env.timeout(1)
+                yield env.timeout(0)
 
         except simpy.Interrupt:
             yield env.timeout(0.01)
@@ -401,16 +489,17 @@ def depall():
             depall_status = Status.red.name
             depall_description = Status.red.value
             DEPALL_STOP_TIMES += 1
+            FILLER_STANDBY_FLAG = PASTEUR_STANDBY_FLAG = True  # Θα σηκώσει το flag για να μετρήσει τα sb times του filler
 
             # Manual Breakdown
             if AUTO_BRAKE_VAR == 0:
-                while VAR_STOP_D:
+                while DEPALL_STOP_FLAG:
                     # Set Depall Status
                     yield env.timeout(0.01)
                     depall_status = Status.red.name
                     depall_description = Status.red.value
 
-                VAR_STOP_D = True
+                DEPALL_STOP_FLAG = True
 
             # Automated Breakdown
             else:
@@ -423,17 +512,16 @@ def depall():
                     depall_description = Status.red.value
                     # yield env.timeout(random.uniform(300, 1800))
 
-                DEPALL_IS_BROKEN = False
-
             # displayStop("Το Depall έχει τεθεί εκτός λειτουργίας (Status = RED).\n Αιτία: Φρακαρισμένη έξοδος.", env.now)
             finish_depall_break = env.now
             DEPALL_STOP_DURATION[DEPALL_STOP_TIMES] = finish_depall_break - start_depall_break
+            DEPALL_IS_BROKEN = False
 
 
 def filler():
     """Διεργασία του μηχανήματος Filler"""
     global filler_status, filler_description, current_filler_level
-    global VAR_STOP_F, FILLER_RUN_TIMES, FILLER_RUN_DURATION, FILLER_STOP_TIMES, FILLER_STOP_DURATION, FILLER_IS_BROKEN
+    global FILLER_STOP_FLAG, FILLER_RUN_DURATION, FILLER_STOP_TIMES, FILLER_STOP_DURATION, FILLER_IS_BROKEN, PASTEUR_STANDBY_FLAG
     yield env.timeout(depall_ptime + 2)  # Ξεκινάει μετά απο Χ δευτερόλεπτα απο την έναρξη της παραγωγής
 
     while True:
@@ -441,7 +529,6 @@ def filler():
             if not FILLER_IS_BROKEN:
                 yield env.timeout(0)  # Τα βάζει ακαριαία η μεταφορική DF
                 filler_run_start = env.now
-                FILLER_RUN_TIMES += 1
 
                 print('%.2f: ' % env.now + Fore.YELLOW + "Depall Cans Before proc: %d " % can_pack_line.depallCans.level + Fore.RESET)
                 print('%.2f: ' % env.now + Fore.YELLOW + "Filled Cans Before proc: %d " % can_pack_line.filledCans.level + Fore.RESET)
@@ -463,8 +550,7 @@ def filler():
                 print('%.2f: ' % env.now + Fore.YELLOW + "Depall Cans After Proc: %d" % can_pack_line.depallCans.level + Fore.RESET)
                 print('%.2f: ' % env.now + Fore.YELLOW + "Filled Cans After proc: %d " % can_pack_line.filledCans.level + Fore.RESET)
 
-                filler_run_finish = env.now
-                FILLER_RUN_DURATION[FILLER_RUN_TIMES] = filler_run_finish - filler_run_start
+                FILLER_RUN_DURATION.append(env.now - filler_run_start)
 
         except simpy.Interrupt:
             yield env.timeout(0)
@@ -473,16 +559,17 @@ def filler():
             filler_status = Status.red.name
             filler_description = Status.red.value
             FILLER_STOP_TIMES += 1
+            PASTEUR_STANDBY_FLAG = True
 
             # Manual Breakdown
             if AUTO_BRAKE_VAR == 0:
-                while VAR_STOP_F:
+                while FILLER_STOP_FLAG:
                     # Set Filler Status
                     yield env.timeout(0.01)
                     filler_status = Status.red.name
                     filler_description = Status.red.value
 
-                VAR_STOP_F = True
+                FILLER_STOP_FLAG = True
 
             # Automated Breakdown
             else:
@@ -508,14 +595,15 @@ threads = list()
 def pasteur():
     """Διεργασία του μηχανήματος Pasteur"""
     global pasteur_status, pasteur_description, current_pasteur_level
-    global VAR_STOP_P, PASTEUR_RUN_TIMES, PASTEUR_RUN_DURATION, PASTEUR_STOP_TIMES, PASTEUR_STOP_DURATION, PASTEUR_IS_BROKEN
+    global PASTEUR_STOP_FLAG, PASTEUR_RUN_DURATION, PASTEUR_STOP_TIMES, PASTEUR_STOP_DURATION, PASTEUR_IS_BROKEN
     yield env.timeout(depall_ptime + filler_ptime + 4)
 
     while True:
         try:
             if not PASTEUR_IS_BROKEN:
+                pasteur_run_start = env.now
                 # Επεξεργάζεται όσα κουτιά και αν συναντήσει κάθε pasteur_batch_serve_time
-                yield env.timeout(pasteur_batch_serve_time)  # Η μεταφορική τα εισάγει κάθε 30 min
+                yield env.timeout(pasteur_batch_serve_time)  # Η μεταφορική τα εισάγει κάθε 30 sec
 
                 # Τα βάζει ακαριαία η μεταφορική FP
                 print('%.2f: ' % env.now + Fore.LIGHTCYAN_EX + "Filled Cans Before proc: %d " % can_pack_line.filledCans.level + Fore.RESET)
@@ -541,8 +629,9 @@ def pasteur():
                 # Pasteur Process
                 def pasteur_process():
                     global current_pasteur_level, pasteur_status, pasteur_description
-                    pasteur_run_start = env.now
+
                     if can_pack_line.filledCans.level != 0:
+
                         can_pack_line.filledCans.get(pasteur_input)
                         pasteur_status = Status.green.name
                         pasteur_description = Status.green.value
@@ -553,9 +642,7 @@ def pasteur():
                         print('%.2f: ' % env.now + Fore.LIGHTCYAN_EX + "Pasteur Cans After proc: %d " % can_pack_line.pastCans.level + Fore.RESET)
                         print('%.2f: ' % env.now + Fore.LIGHTCYAN_EX + "Filled Cans After Proc: %d " % can_pack_line.filledCans.level + Fore.RESET)
 
-                    pasteur_run_finish = env.now
-                    PASTEUR_RUN_DURATION[PASTEUR_RUN_TIMES] = pasteur_run_finish - pasteur_run_start
-
+                PASTEUR_RUN_DURATION.append(env.now - pasteur_run_start)
                 t = threading.Thread(target=pasteur_process, name='t')
                 t.start()
                 t.join()
@@ -569,7 +656,7 @@ def pasteur():
             pasteur_description = Status.red.value
             PASTEUR_STOP_TIMES += 1
 
-            while VAR_STOP_P:
+            while PASTEUR_STOP_FLAG:
                 # Set Pasteur Status
                 yield env.timeout(0.01)
                 pasteur_status = Status.red.name
@@ -577,13 +664,13 @@ def pasteur():
 
             # Manual Breakdown
             if AUTO_BRAKE_VAR == 0:
-                while VAR_STOP_P:
+                while PASTEUR_STOP_FLAG:
                     # Set Pasteur Status
                     yield env.timeout(0.01)
                     pasteur_status = Status.red.name
                     pasteur_description = Status.red.value
 
-                VAR_STOP_P = True
+                PASTEUR_STOP_FLAG = True
 
             # Automated Breakdown
             else:
@@ -617,7 +704,7 @@ def status_monitoring():
 def live_monitoring():
     """Live Simulation Monitoring"""
     global current_depall_level, current_filler_level, current_pasteur_level
-    global VAR_STOP_D, VAR_STOP_F, VAR_STOP_P
+    global DEPALL_STOP_FLAG, FILLER_STOP_FLAG, PASTEUR_STOP_FLAG
 
     window = Tk()
     window_colour = '#D6EBFE'
@@ -658,7 +745,7 @@ def live_monitoring():
         LB2.grid(row=2, column=col, padx=180, sticky=W)
         LB1 = Label(window, bg='#D9F2CC', bd=4, width=3, height=2, relief=RAISED)  # Green
         LB1.grid(row=3, column=col, padx=180, sticky=W)
-        # Name
+        # Machine Name
         Button(window, bg='#8DCDBA', bd=4, relief=RAISED, text=machine_name, font="Arial 13 bold").grid(row=3, column=col, padx=20, sticky=W)
 
         return LB3, LB2, LB1
@@ -674,26 +761,28 @@ def live_monitoring():
         Label(window, text=str(current_level) + ' / ' + str(machine_capacity), relief=RIDGE, font="Arial 15 bold", justify=CENTER).grid(row=7, column=col, pady=0, ipadx=i_padx, ipady=15)
 
     def var_change(machine):
-        global VAR_STOP_D, VAR_STOP_F, VAR_STOP_P
+        """ Flag for break machines """
+        global DEPALL_STOP_FLAG, FILLER_STOP_FLAG, PASTEUR_STOP_FLAG
         if machine == 'DEPALL':
-            VAR_STOP_D = False
+            DEPALL_STOP_FLAG = False
         elif machine == 'FILLER':
-            VAR_STOP_F = False
+            FILLER_STOP_FLAG = False
         elif machine == 'PASTEUR':
-            VAR_STOP_P = False
-        print("var change function")
+            PASTEUR_STOP_FLAG = False
+        print("var_change function")
 
     def manual_brake(col, machine):
         """ Machine Brake Button """
         if AUTO_BRAKE_VAR == 0:
-            # Brake Button
-            Button(window, text='BRAKE', command=partial(manual_break_and_repair_machine, machine), bg='#D97854', bd=4, font="Arial 13 bold", relief=RAISED, activebackground='#D97854').grid(row=5, column=col, sticky=W, pady=5, padx=100)
+            # Break Button
+            Button(window, text='BREAK', command=partial(manual_break_and_repair_machine, machine), bg='#D97854', bd=4, font="Arial 13 bold", relief=RAISED, activebackground='#D97854').grid(row=5, column=col, sticky=W, pady=5, padx=100)
             # Repair Button
             RB = Button(window, text='REPAIR', command=partial(var_change, machine), bg='#86D954', bd=4, font="Arial 13 bold", relief=RAISED, activebackground='#86D954')
             RB.grid(row=5, column=col, sticky=E, pady=5, padx=100)
             # return var
 
     def kpis(col, run_times, run_duration, run_percentage, standby_times, standby_duration, standby_percentage, stop_times, stop_duration, stop_percentage):
+        """ KPIs Times, Duration about machines """
         run_percentage += 1
         standby_percentage += 1
         stop_percentage += 1
@@ -721,7 +810,7 @@ def live_monitoring():
     # Filler
     F_BL3, F_BL2, F_BL1 = machine_beacon(3, 'FILLER')
     manual_brake(3, 'FILLER')
-    # PasteurS
+    # Pasteur
     P_BL3, P_BL2, P_BL1 = machine_beacon(5, 'PASTEUR')
     manual_brake(5, 'PASTEUR')
 
@@ -747,39 +836,40 @@ def live_monitoring():
         return '{:02d}:{:02d}:{:02d}:{:02d}'.format(days, hours, minutes, seconds)
         # return '{:02d}D {:02d}H {:02d}M {:02d}S'.format(days, hours, minutes, seconds)
 
-    depall_run_percentage = []
-    depall_standby_percentage = []
-    depall_stop_percentage = []
-
-    # Update
+    # Update Function for Live Monitoring
     def update():
+        """ Update function for UI """
         if env.now <= SIM_TIME:
             # KPIS(col, run_times, run_duration, run_percentage, standby_times, standby_duration, standby_percentage, stop_times, stop_duration, stop_percentage):
+
             # Raw Material - Depall
             current_conveyor_capacity_buffer(0, 25, can_pack_line.emptyCans.level, depall_capacity, "Palet Cans Conveyor")
+
             # Depall
-            depall_run_percentage.append(sum(DEPALL_RUN_DURATION.values())/env.now)
-            depall_standby_percentage.append(sum(DEPALL_STANDBY_DURATION.values())/env.now)
-            depall_stop_percentage.append(sum(DEPALL_STOP_DURATION.values())/env.now)
-            # total = sum(depall_run_percentage) + sum(depall_standby_percentage) + sum(depall_stop_percentage)
             current_machine_buffer(1, 125, current_depall_level, depall_batch, "Depall Capacity ")
-            kpis(1, double_time_print(DEPALL_RUN_TIMES+DEPALL_STOP_TIMES), duration_converter(DEPALL_RUN_DURATION), sum(depall_run_percentage), double_time_print(DEPALL_STANDBY_TIMES),
-                 duration_converter(DEPALL_STANDBY_DURATION), sum(depall_standby_percentage), double_time_print(DEPALL_STOP_TIMES), duration_converter(DEPALL_STOP_DURATION), sum(depall_stop_percentage))
+            kpis(1, double_time_print(DEPALL_STANDBY_TIMES+DEPALL_STOP_TIMES), duration_converter(DEPALL_RUN_DURATION), 0, double_time_print(DEPALL_STANDBY_TIMES),
+                 duration_converter(DEPALL_STANDBY_DURATION), 0, double_time_print(DEPALL_STOP_TIMES), duration_converter(DEPALL_STOP_DURATION), 0)
+
             # Depall - Filler conveyor
-            current_conveyor_capacity_buffer(2, 25, can_pack_line.depallCans.level, filler_capacity, "Empty Cans Conveyor")
+            current_conveyor_capacity_buffer(2, 25, can_pack_line.depallCans.level, filler_capacity, "Depall Cans Conveyor")
+
             # Filler
             current_machine_buffer(3, 135, current_filler_level, filler_batch, "Filler Capacity")
             kpis(3, double_time_print(FILLER_RUN_TIMES+FILLER_STOP_TIMES), duration_converter(FILLER_RUN_DURATION), 0, double_time_print(FILLER_STANDBY_TIMES),
                  duration_converter(FILLER_STANDBY_DURATION), 0, double_time_print(FILLER_STOP_TIMES), duration_converter(FILLER_STOP_DURATION), 0)
+
             # Filler - Pasteur conveyor
             current_conveyor_capacity_buffer(4, 25, can_pack_line.filledCans.level, pasteur_capacity, "Filled Cans Conveyor")
+
             # Pasteur
             current_machine_buffer(5, 115, current_pasteur_level, pasteur_batch, "Pasteur Capacity")
             kpis(5, double_time_print(PASTEUR_RUN_TIMES+PASTEUR_STOP_TIMES), duration_converter(PASTEUR_RUN_DURATION), 0, double_time_print(PASTEUR_STANDBY_TIMES),
                  duration_converter(PASTEUR_STANDBY_DURATION), 0, double_time_print(PASTEUR_STOP_TIMES), duration_converter(PASTEUR_STOP_DURATION), 0)
-            # Pasteur - _  conveyor
-            current_conveyor_capacity_buffer(6, 25, can_pack_line.pastCans.level, 'Inf', "Pasteurised Conveyor")
 
+            # Pasteur - Next Machine conveyor
+            current_conveyor_capacity_buffer(6, 25, can_pack_line.pastCans.level, EXPECTED_CANS, "Pasteurised Conveyor")
+
+            # Beacon Status
             beacon_status(depall_status, D_BL3, D_BL2, D_BL1)
             beacon_status(filler_status, F_BL3, F_BL2, F_BL1)
             beacon_status(pasteur_status, P_BL3, P_BL2, P_BL1)
@@ -798,6 +888,7 @@ def live_monitoring():
 
 
 # -------------------------------------------------
+# Program Startup
 random.seed(RANDOM_SEED)  # Reproducing the results
 
 # Environment Setup
@@ -806,11 +897,28 @@ can_pack_line = CanPackLine()
 
 threading.Thread(target=live_monitoring).start()
 
-# Simulation
+# Start Simulation for time  = SIM_TIME
 env.run(until=SIM_TIME)
 
+# -------------------------------------------------
+# Metrics - KPIs Calculations
+# Standby Percentage
+DEPALL_STANDBY_PERCENT = machine_duration_conv_to_perc(DEPALL_STANDBY_DURATION, SIM_TIME)
+FILLER_STANDBY_PERCENT = machine_duration_conv_to_perc(FILLER_STANDBY_DURATION, SIM_TIME)
+PASTEUR_STANDBY_PERCENT = machine_duration_conv_to_perc(PASTEUR_STANDBY_DURATION, SIM_TIME)
+# Stop Percentage
+DEPALL_STOP_PERCENT = machine_duration_conv_to_perc(DEPALL_STOP_DURATION, SIM_TIME)
+FILLER_STOP_PERCENT = machine_duration_conv_to_perc(FILLER_STOP_DURATION, SIM_TIME)
+PASTEUR_STOP_PERCENT = machine_duration_conv_to_perc(PASTEUR_STOP_DURATION, SIM_TIME)
+
+
+# -------------------------------------------------
+# Conclusion - Outro Functions
+# Outro Screen for Production Analysis
+threading.Thread(target=outroScreen, args=(SIM_TIME, PRODUCTION_SPEED, can_pack_line.pastCans.level, EXPECTED_CANS, DEPALL_STANDBY_PERCENT, DEPALL_STOP_PERCENT, FILLER_STANDBY_PERCENT, FILLER_STOP_PERCENT, PASTEUR_STANDBY_PERCENT, PASTEUR_STOP_PERCENT, )).start()
+
 print("\nTotal Production: " + str(can_pack_line.pastCans.level) + " beer cans in " + str(HOURS) + " Hours")
-print("Expected Cans Production: {0} cans in {1} Shifts".format(CANS_PER_HOUR * HOURS, HOURS))
+print("Expected Cans Production: {0} cans in {1} Shifts".format(EXPECTED_CANS, HOURS))
 print('Expected Simulation Duration: %d seconds\n' % SIM_TIME)
 print('----------------------------------')
 print('SIMULATION COMPLETED')
@@ -829,8 +937,9 @@ print('\x1b[1;30;45m' + 'ΜΕΤΡΙΚΕΣ / KPIs' + '\x1b[0m')
 print("Pasteur function Calls: ", round(sum(PASTEUR_RUN_DURATION) / SIM_TIME))
 print("Threads: ", len(threads))
 
-print(DEPALL_STOP_DURATION)
+
 # -------------------------------------------------
+
 '''
 # PLOTS
 # Plot Gauss Graph
