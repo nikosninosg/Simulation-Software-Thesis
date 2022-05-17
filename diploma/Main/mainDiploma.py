@@ -29,7 +29,7 @@ AUTO_BRAKE_VAR = 0
 DT = 100  # in seconds
 
 # SIMULATION RUN TIME
-HOURS = 4  # Simulation time in shifts
+HOURS = 2  # Simulation time in shifts
 SIM_TIME = HOURS * 60 * 60  # Simulation time in seconds
 
 times = SIM_TIME / DT  # Num of rows in csv
@@ -107,7 +107,7 @@ DEPALL_RUN_TIMES = 1
 DEPALL_RUN_DURATION = []
 # D-Stand
 DEPALL_STANDBY_TIMES = 0
-DEPALL_STANDBY_DURATION = []
+DEPALL_STANDBY_DURATION = {}
 # D-Stop
 DEPALL_STOP_FLAG = True
 DEPALL_STOP_TIMES = 0
@@ -121,7 +121,7 @@ FILLER_RUN_TIMES = 1
 FILLER_RUN_DURATION = []
 # F-Stand
 FILLER_STANDBY_TIMES = 0
-FILLER_STANDBY_DURATION = []
+FILLER_STANDBY_DURATION = {}
 FILLER_STANDBY_FLAG = False  # Για την προς τα εμπρός εκτέλεση
 # F-Stop
 FILLER_STOP_FLAG = True
@@ -135,7 +135,7 @@ PASTEUR_RUN_TIMES = 1
 PASTEUR_RUN_DURATION = []
 # P-Stand
 PASTEUR_STANDBY_TIMES = 0
-PASTEUR_STANDBY_DURATION = []
+PASTEUR_STANDBY_DURATION = {}
 PASTEUR_STANDBY_FLAG = False
 # P-Stop
 PASTEUR_STOP_FLAG = True
@@ -331,7 +331,8 @@ class CanPackLine(object):
                 "Μόλις βγει απο το standby αυξάνεται κατά 1"
                 DEPALL_RUN_TIMES += 1
                 DEPALL_STANDBY_TIMES += 1
-                DEPALL_STANDBY_DURATION.append(env.now - depall_standby_start)
+                # DEPALL_STANDBY_DURATION.append(env.now - depall_standby_start)
+                DEPALL_STANDBY_DURATION[depall_standby_start] = env.now - depall_standby_start
                 df_flag = False
 
             else:
@@ -368,7 +369,8 @@ class CanPackLine(object):
                 yield env.timeout(1)
                 # Stand by απο το Depall
                 if depall_status == Status.red.name:
-                    FILLER_STANDBY_DURATION.append(env.now - filler_standby_start)
+                    # FILLER_STANDBY_DURATION.append(env.now - filler_standby_start)
+                    FILLER_STANDBY_DURATION[filler_standby_start] = env.now - filler_standby_start
 
             else:
                 yield env.timeout(depall_ptime)  # Κάθε depall_ptime sec ελέγχει την παραγωγή
@@ -398,7 +400,8 @@ class CanPackLine(object):
                 FILLER_RUN_TIMES += 1
                 FILLER_STANDBY_TIMES += 1
                 # Stand by from Pasteur
-                FILLER_STANDBY_DURATION.append(env.now - filler_standby_start)
+                # FILLER_STANDBY_DURATION.append(env.now - filler_standby_start)
+                FILLER_STANDBY_DURATION[filler_standby_start] = env.now - filler_standby_start
                 fp_flag = False
 
             else:
@@ -432,7 +435,8 @@ class CanPackLine(object):
 
                 yield env.timeout(1)
                 if depall_status == Status.red.name or filler_status == Status.red.name:
-                    PASTEUR_STANDBY_DURATION.append(env.now - pasteur_standby_start)
+                    # PASTEUR_STANDBY_DURATION.append(env.now - pasteur_standby_start)
+                    PASTEUR_STANDBY_DURATION[pasteur_standby_start] = env.now - pasteur_standby_start
 
             else:
                 # yield env.timeout(depall_ptime + filler_ptime + 4)  # Κάθε x sec ελέγχει την παραγωγή
@@ -513,8 +517,8 @@ def depall():
                     # yield env.timeout(random.uniform(300, 1800))
 
             # displayStop("Το Depall έχει τεθεί εκτός λειτουργίας (Status = RED).\n Αιτία: Φρακαρισμένη έξοδος.", env.now)
-            finish_depall_break = env.now
-            DEPALL_STOP_DURATION[DEPALL_STOP_TIMES] = finish_depall_break - start_depall_break
+            # DEPALL_STOP_DURATION[DEPALL_STOP_TIMES] = finish_depall_break - start_depall_break
+            DEPALL_STOP_DURATION[start_depall_break] = env.now - start_depall_break
             DEPALL_IS_BROKEN = False
 
 
@@ -585,8 +589,8 @@ def filler():
                 FILLER_IS_BROKEN = False
 
             # displayStop("Το Depall έχει τεθεί εκτός λειτουργίας (Status = RED).\n Αιτία: Φρακαρισμένη έξοδος.", env.now)
-            finish_filler_break = env.now
-            FILLER_STOP_DURATION[FILLER_STOP_TIMES] = finish_filler_break - start_filler_break
+            # FILLER_STOP_DURATION[FILLER_STOP_TIMES] = finish_filler_break - start_filler_break
+            FILLER_STOP_DURATION[start_filler_break] = env.now - start_filler_break
 
 
 threads = list()
@@ -683,8 +687,8 @@ def pasteur():
 
                 PASTEUR_IS_BROKEN = False
 
-            finish_pasteur_break = env.now
-            PASTEUR_STOP_DURATION[PASTEUR_STOP_TIMES] = finish_pasteur_break - start_pasteur_break
+            # PASTEUR_STOP_DURATION[PASTEUR_STOP_TIMES] = finish_pasteur_break - start_pasteur_break
+            PASTEUR_STOP_DURATION[start_pasteur_break] = env.now - start_pasteur_break
 
 
 def status_monitoring():
@@ -710,7 +714,7 @@ def live_monitoring():
     window_colour = '#D6EBFE'
     window.title("Live Process Monitoring!")
     window.configure(bg=window_colour)
-    window.geometry('1900x1200')
+    window.geometry('1900x1050')
 
     # Titles
     Label(window, bg="light blue",  relief=GROOVE, text="LIVE PROCESS SIMULATION", font="Arial 25 bold").grid(row=0, sticky='EW', pady=5, columnspan=10)
@@ -880,11 +884,177 @@ def live_monitoring():
     update()
 
     # Close Button
-    Button(window, text="Close", height=2, width=10, font="Arial 12 bold ", justify=CENTER, bd='5', bg='#479997',
-           command=window.destroy).grid(row=15, columnspan=10, pady=40)
+    Button(window, text="Close", height=2, width=10, font="Arial 12 bold ", justify=CENTER, bd='5', bg='#479997', command=window.destroy).grid(row=15, columnspan=10, pady=40)
 
     window.resizable(True, True)
     window.mainloop()
+
+# -------------------------------------------------
+# Outro windows
+
+
+def outroScreen(D_PERC_SB_, D_PERC_STOP_, F_PERC_SB_, F_PERC_STOP_, P_PERC_SB_, P_PERC_STOP_):
+    """ Παράθυρο γενικού σκοπού για τη συνολική εικόνα της γραμμής """
+    root = Tk()
+    root.geometry("780x600")
+
+    bg_colour = '#D6EBFE'
+    root.configure(bg=bg_colour)
+    # Title
+    Label(root, anchor=CENTER, text='Δείκτες απόδοσης γραμμής', font="Arial 16 bold", bg='#4d94ff', pady=7).grid(row=0, sticky=EW, columnspan=5)
+
+    # Total Time Simulation
+    Label(root, text="Συνολική Διάρκεια Simulation: " + str(duration_converter(SIM_TIME)), font="Arial 14", bg=bg_colour, pady=10).grid(row=1, sticky=W, columnspan=5, padx=30)
+    # Production Speed
+    Label(root, text="Ταχύτητα παραγωγής της γραμμής: " + str(PRODUCTION_SPEED) + " cans per second", font="Arial 14", bg=bg_colour, pady=10).grid(row=3, sticky=W, columnspan=5, padx=30)
+    # Produced products
+    Label(root, text="Προϊόντα που παράχθηκαν: " + str(can_pack_line.pastCans.level), font="Arial 14", bg=bg_colour, pady=10).grid(row=4, sticky=W, columnspan=5, padx=30)
+    # Expected Products
+    Label(root, text="Προϊόντα που αναμέναμε να παραχθούν: " + str(EXPECTED_CANS), font="Arial 14", bg=bg_colour, pady=10).grid(row=5, sticky=W, columnspan=5, padx=30)
+    # Overall Production Efficiency
+    Label(root, text="Συνολική απόδοση παραγωγής: " + str(round((can_pack_line.pastCans.level/EXPECTED_CANS)*100, 2))+'%', font="Arial 14", bg=bg_colour, pady=10).grid(row=6, sticky=W, columnspan=5, padx=30)
+
+    # Τίτλος για τα ποσοστά
+    Label(root, text="Καταστάσεις Μηχανημάτων", font="Arial 16 bold", bg='#4d94ff', pady=7).grid(row=10, sticky=EW, pady=20, columnspan=8)
+    Label(root, text='MACHINE', font="Arial 14 bold underline", bg=bg_colour, fg='black').grid(column=0, row=11, padx=30)
+    Label(root, text='RUN', font="Arial 14 bold underline", bg=bg_colour, fg='#77D82A').grid(column=1, row=11, padx=30)
+    Label(root, text='STAND_BY', font="Arial 14 bold underline", bg=bg_colour, fg='#ffff1a').grid(column=2, row=11, padx=30)
+    Label(root, text='STOP', font="Arial 14 bold underline", bg=bg_colour, fg='#BE0000').grid(column=3, row=11, padx=30)
+
+    def percentage(row, machine_name, perc_run, perc_standby, perc_stop):
+        Label(root, text=machine_name, font="Arial 14", bg=bg_colour).grid(column=0, row=row, padx=30, pady=15)
+        Label(root, text=str(perc_run)+'%', font="Arial 14", bg=bg_colour).grid(column=1, row=row, padx=30, pady=15)
+        Label(root, text=str(perc_standby)+'%', font="Arial 14", bg=bg_colour).grid(column=2, row=row, padx=30, pady=15)
+        Label(root, text=str(perc_stop)+'%', font="Arial 14", bg=bg_colour).grid(column=3, row=row, padx=30, pady=15)
+        # Analysis Button
+        if machine_name == 'DEPALL':
+            Button(root, text=machine_name + ' Analysis', height=0, width=15, font="Arial 12 bold", bd='5', bg='light green',
+                   activebackground='cyan', command=lambda: rcaScreen(machine_name, D_PERC_SB_, D_PERC_STOP_)).grid(row=row, column=4, padx=0, pady=15, sticky=W)
+        elif machine_name == 'FILLER':
+            Button(root, text=machine_name + ' Analysis', height=0, width=15, font="Arial 12 bold", bd='5', bg='light green',
+                   activebackground='cyan', command=lambda: rcaScreen(machine_name, F_PERC_SB_, F_PERC_STOP_)).grid(row=row, column=4, padx=0, pady=15, sticky=W)
+        elif machine_name == 'PASTEUR':
+            Button(root, text=machine_name + ' Analysis', height=0, width=15, font="Arial 12 bold", bd='5', bg='light green',
+                   activebackground='cyan', command=lambda: rcaScreen(machine_name, P_PERC_SB_, P_PERC_STOP_)).grid(row=row, column=4, padx=0, pady=15, sticky=W)
+
+    # Depall
+    # D_PERC_SB_ = machine_duration_conv_to_perc(D_PERC_SB_, SIM_TIME_)
+    # D_PERC_STOP_ = machine_duration_conv_to_perc(D_PERC_STOP_, SIM_TIME_)
+    percentage(13, 'DEPALL', round(100 - (D_PERC_SB_ + D_PERC_STOP_), 2), D_PERC_SB_, D_PERC_STOP_)
+    # Filler
+    # F_PERC_SB_ = machine_duration_conv_to_perc(F_PERC_SB_, SIM_TIME_)
+    # F_PERC_STOP_ = machine_duration_conv_to_perc(F_PERC_STOP_, SIM_TIME_)
+    percentage(14, 'FILLER', round(100 - (F_PERC_SB_ + F_PERC_STOP_), 2), F_PERC_SB_, F_PERC_STOP_)
+    # Pasteur
+    # P_PERC_SB_ = machine_duration_conv_to_perc(P_PERC_SB_, SIM_TIME_)
+    # P_PERC_STOP_ = machine_duration_conv_to_perc(P_PERC_STOP_, SIM_TIME_)
+    percentage(15, 'PASTEUR', round(100 - (P_PERC_SB_ + P_PERC_STOP_), 2), P_PERC_SB_, P_PERC_STOP_)
+
+    root.mainloop()
+
+
+def rcaScreen(machine_name, STANDBY_PERCENT_, STOP_PERCENT_, ):
+    """ Παράθυρο μηχανήματος για την ανάλυση 1.Efficiency, 2.RCA, 3.Stoppages """
+    root = Tk()
+    root.geometry("800x900")
+
+    bg_colour = '#D6EBFE'
+    root.configure(bg=bg_colour)
+
+    # 1 - Title
+    Label(root, anchor=CENTER, text=machine_name + ' Efficiency Analysis', font="Arial 16 bold", bg='#4d94ff', pady=7).grid(row=0, sticky=EW, columnspan=5)
+    # Run Percentage
+    Label(root, text="Ποσοστό παραγωγής μηχανήματος: " + str(round(100 - (STANDBY_PERCENT_ + STOP_PERCENT_), 2))+'%', font="Arial 14", bg=bg_colour).grid(row=3, sticky=W, columnspan=5, padx=30, pady=5)
+    # Production Time
+    Label(root, text="Χρόνος παραγωγής μηχανήματος:  " + duration_converter(((round(100 - (STANDBY_PERCENT_ + STOP_PERCENT_), 2))*SIM_TIME)/100), font="Arial 14", bg=bg_colour, pady=10).grid(row=4, sticky=W, columnspan=5, padx=30, pady=5)
+    # MTBS
+    Label(root, text="MTBS (συνεχόμενος παραγωγικός χρόνος μέχρι το Stop): ", font="Arial 14", bg=bg_colour).grid(row=6, sticky=W, columnspan=5, padx=30, pady=5)
+
+    # 2 - Title RCA
+    Label(root, anchor=CENTER, text='Ανάλυση μη παραγωγικού χρόνου', font="Arial 16 bold", bg='#9DF4EB', pady=7).grid(row=8, sticky=EW, columnspan=5)
+
+    def rca_general_info(row, sb_dur):
+        # Μην παραγωγικός χρόνος
+        Label(root, text='Συνολικός μη παραγωγικός χρόνος: ', font="Arial 14", bg=bg_colour).grid(columnspan=10, row=row, sticky=W, padx=30, pady=5)
+        Label(root, text='Συνολικό πλήθος standbys: ' + str(len(sb_dur)), font="Arial 14", bg=bg_colour).grid(columnspan=10, row=row + 1, sticky=W, padx=30, pady=5)
+        Label(root, text='Συνολική διάρκεια σε standbys: ' + str(duration_converter(sb_dur)), font="Arial 14", bg=bg_colour).grid(columnspan=10, row=row + 2, sticky=W, pady=5, padx=30)
+
+    # RCA Title
+    Label(root, anchor=CENTER, text='ROOT CAUSE ANALYSIS (RCA)', font="Arial 16 bold underline", bg=bg_colour, pady=7).grid(row=14, sticky=EW, columnspan=5)
+
+    # Column Title
+    Label(root, text='ΜΗΧΑΝΗΜΑ', font="Arial 14 bold underline", bg=bg_colour).grid(column=0, row=16, padx=30)
+    Label(root, text='ΠΛΗΘΟΣ', font="Arial 14 bold underline", bg=bg_colour).grid(column=1, row=16, padx=30)
+    Label(root, text='ΔΙΑΡΚΕΙΑ', font="Arial 14 bold underline", bg=bg_colour).grid(column=2, row=16, padx=30)
+    Label(root, text='ΠΟΣΟΣΤΟ', font="Arial 14 bold underline", bg=bg_colour).grid(column=3, row=16, padx=30)
+
+    # RCA Table
+    Label(root, text='1', font="Arial 13", bg=bg_colour).grid(column=0, row=17, padx=30)
+    # 18
+    # 19
+    # 20
+
+    # 3 - Stoppages Logs Title
+
+    # Breakdowns Title
+    Label(root, anchor=CENTER, text="Stoppages Logs", font="Arial 16 bold", bg='#9DF4EB').grid(row=24, sticky=EW, pady=10, columnspan=4)
+
+    def stoppages_general_info(row, stops_num, stops_dur):
+        stops_dur = sum(stops_dur.values())
+        Label(root, text="Συνολικό πλήθος breakdowns: " + str(stops_num), font="Arial 14", bg=bg_colour).grid(columnspan=10, sticky=W, row=row, padx=30, pady=5)
+        Label(root, text="Συνολική διάρκεια breakdowns: " + str(duration_converter(stops_dur)), font="Arial 14", bg=bg_colour).grid(columnspan=10, sticky=W, row=row+1, padx=30, pady=5)
+        if stops_num == 0:
+            stops_num = 1
+        Label(root, text="Μέση διάρκεια βλάβης: " + str(int((stops_dur/stops_num) % 3600 / 60)) + ' min', font="Arial 14", bg=bg_colour).grid(columnspan=10, sticky=W, row=row+2, padx=30, pady=5)
+        Label(root, text="MTBF (Μέσος όρος διάρκειας για τη παρουσίαση βλάβης): " + str(int(((SIM_TIME - stops_dur)/stops_num) % 3600 / 60)) + ' min', font="Arial 14", bg=bg_colour).grid(columnspan=10, sticky=W, row=row+3, padx=30, pady=5)
+
+    Label(root, text='MACHINE', font="Arial 14 bold underline", bg=bg_colour).grid(column=0, row=29, padx=30)
+    Label(root, text='TIME', font="Arial 14 bold underline", bg=bg_colour).grid(column=1, row=29, padx=30)
+    Label(root, text='EVENT', font="Arial 14 bold underline", bg=bg_colour).grid(column=2, row=29, padx=30)
+    Label(root, text='DURATION', font="Arial 14 bold underline", bg=bg_colour).grid(column=3, row=29, padx=30)
+
+    def standbys_print(row, machine_name_, dictionary):
+        i = 0
+        for key, value in dictionary.items():
+            if i <= 10:
+                Label(root, text=machine_name_, font="Arial 14", bg=bg_colour).grid(column=0, row=row + i, padx=30, pady=5)
+                Label(root, text=duration_converter(key), font="Arial 14", bg=bg_colour).grid(column=1, row=row + i, padx=30, pady=5)
+                Label(root, text='Stand By', font="Arial 14", bg=bg_colour).grid(column=2, row=row + i, padx=30)
+                Label(root, text=duration_converter(value), font="Arial 14", bg=bg_colour).grid(column=3, row=row + i, padx=30, pady=5)
+                i += 1
+            else:
+                continue
+
+        return row + i
+
+    def breakdowns_print(row, machine_name_, dictionary):
+        i = 0
+        for key, value in dictionary.items():
+            Label(root, text=machine_name_, font="Arial 14", bg=bg_colour).grid(column=0, row=row + i, padx=30, pady=5)
+            Label(root, text=duration_converter(key), font="Arial 14", bg=bg_colour).grid(column=1, row=row + i, padx=30, pady=5)
+            Label(root, text='Stop', font="Arial 14", bg=bg_colour).grid(column=2, row=row + i, padx=30)
+            Label(root, text=duration_converter(value), font="Arial 14", bg=bg_colour).grid(column=3, row=row + i, padx=30, pady=5)
+            i += 1
+
+    # OEE + ' ('+str((produced_cans/(CANS_PER_HOUR * SHIFT * 8))*100)+'%)'
+
+    if machine_name == 'DEPALL':
+        rca_general_info(9, DEPALL_STANDBY_DURATION)
+        stoppages_general_info(25, DEPALL_STOP_TIMES, DEPALL_STOP_DURATION)
+        sd = standbys_print(32, 'Depall', DEPALL_STANDBY_DURATION)
+        breakdowns_print(sd+2, 'Depall', DEPALL_STOP_DURATION)
+    elif machine_name == 'FILLER':
+        rca_general_info(9, FILLER_STANDBY_DURATION)
+        stoppages_general_info(25, FILLER_STOP_TIMES, FILLER_STOP_DURATION)
+        sf = standbys_print(32, 'Filler', FILLER_STANDBY_DURATION)
+        breakdowns_print(sf + 2, 'Filler', FILLER_STOP_DURATION)
+    elif machine_name == 'PASTEUR':
+        rca_general_info(9, PASTEUR_STANDBY_DURATION)
+        stoppages_general_info(25, PASTEUR_STOP_TIMES, PASTEUR_STOP_DURATION)
+        sp = standbys_print(32, 'Pasteur', PASTEUR_STANDBY_DURATION)
+        breakdowns_print(sp + 2, 'Pasteur', PASTEUR_STOP_DURATION)
+
+    root.mainloop()
 
 
 # -------------------------------------------------
@@ -909,13 +1079,14 @@ PASTEUR_STANDBY_PERCENT = machine_duration_conv_to_perc(PASTEUR_STANDBY_DURATION
 # Stop Percentage
 DEPALL_STOP_PERCENT = machine_duration_conv_to_perc(DEPALL_STOP_DURATION, SIM_TIME)
 FILLER_STOP_PERCENT = machine_duration_conv_to_perc(FILLER_STOP_DURATION, SIM_TIME)
+
 PASTEUR_STOP_PERCENT = machine_duration_conv_to_perc(PASTEUR_STOP_DURATION, SIM_TIME)
 
 
 # -------------------------------------------------
 # Conclusion - Outro Functions
 # Outro Screen for Production Analysis
-threading.Thread(target=outroScreen, args=(SIM_TIME, PRODUCTION_SPEED, can_pack_line.pastCans.level, EXPECTED_CANS, DEPALL_STANDBY_PERCENT, DEPALL_STOP_PERCENT, FILLER_STANDBY_PERCENT, FILLER_STOP_PERCENT, PASTEUR_STANDBY_PERCENT, PASTEUR_STOP_PERCENT, )).start()
+threading.Thread(target=outroScreen, args=(DEPALL_STANDBY_PERCENT, DEPALL_STOP_PERCENT, FILLER_STANDBY_PERCENT, FILLER_STOP_PERCENT, PASTEUR_STANDBY_PERCENT, PASTEUR_STOP_PERCENT, )).start()
 
 print("\nTotal Production: " + str(can_pack_line.pastCans.level) + " beer cans in " + str(HOURS) + " Hours")
 print("Expected Cans Production: {0} cans in {1} Shifts".format(EXPECTED_CANS, HOURS))

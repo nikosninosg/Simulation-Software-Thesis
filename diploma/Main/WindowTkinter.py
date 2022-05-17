@@ -338,7 +338,7 @@ def welcomeScreen():
 # v1, v2, v3, a, b, c = welcomeScreen()
 # print(v1, v2, v3, a, b, c)
 
-
+'''
 def outroScreen(SIM_TIME_, PRODUCTION_SPEED_, PASTEUR_OUTPUT_, EXPECTED_CANS_, D_PERC_SB_, D_PERC_STOP_, F_PERC_SB_, F_PERC_STOP_, P_PERC_SB_, P_PERC_STOP_):
     root = Tk()
     root.geometry("900x700")
@@ -372,8 +372,15 @@ def outroScreen(SIM_TIME_, PRODUCTION_SPEED_, PASTEUR_OUTPUT_, EXPECTED_CANS_, D
         Label(root, text=str(perc_standby)+'%', font="Arial 14", bg=bg_colour).grid(column=2, row=row, padx=30, pady=15)
         Label(root, text=str(perc_stop)+'%', font="Arial 14", bg=bg_colour).grid(column=3, row=row, padx=30, pady=15)
         # Analysis Button
-        Button(root, text=machine_name + ' Analysis', height=0, width=15, font="Arial 12 bold", bd='5', bg='light green',
-               activebackground='cyan', command=root.destroy).grid(row=row, column=4, padx=0, pady=15, sticky=W)
+        if machine_name == 'DEPALL':
+            Button(root, text=machine_name + ' Analysis', height=0, width=15, font="Arial 12 bold", bd='5', bg='light green',
+                   activebackground='cyan', command=lambda: rcaScreen(SIM_TIME_, machine_name, D_PERC_SB_, D_PERC_STOP_)).grid(row=row, column=4, padx=0, pady=15, sticky=W)
+        elif machine_name == 'FILLER':
+            Button(root, text=machine_name + ' Analysis', height=0, width=15, font="Arial 12 bold", bd='5', bg='light green',
+                   activebackground='cyan', command=lambda: rcaScreen(SIM_TIME_, machine_name, F_PERC_SB_, F_PERC_STOP_)).grid(row=row, column=4, padx=0, pady=15, sticky=W)
+        elif machine_name == 'PASTEUR':
+            Button(root, text=machine_name + ' Analysis', height=0, width=15, font="Arial 12 bold", bd='5', bg='light green',
+                   activebackground='cyan', command=lambda: rcaScreen(SIM_TIME_, machine_name, P_PERC_SB_, P_PERC_STOP_)).grid(row=row, column=4, padx=0, pady=15, sticky=W)
 
     # Depall
     # D_PERC_SB_ = machine_duration_conv_to_perc(D_PERC_SB_, SIM_TIME_)
@@ -393,27 +400,69 @@ def outroScreen(SIM_TIME_, PRODUCTION_SPEED_, PASTEUR_OUTPUT_, EXPECTED_CANS_, D
 
 # outroScreen()
 
-'''
-    # Breakdowns
-    Label(root, anchor=CENTER, text="Breakdowns", font="Arial 16 bold", bg='#9DF4EB', pady=7).grid(row=9, sticky=EW, pady=40, columnspan=4)
-    Label(root, text='MACHINE', font="Arial 14 bold underline", bg=bg_colour).grid(column=0, row=14, padx=30)
-    Label(root, text='TIMES', font="Arial 14 bold underline", bg=bg_colour).grid(column=1, row=14, padx=30)
-    Label(root, text='DURATION', font="Arial 14 bold underline", bg=bg_colour).grid(column=2, row=14, padx=30)
 
-def breakdown(row, machine_name, dictionary):
-    for key, value in dictionary.items():
-        Label(root, text=machine_name, font="Arial 14 bold", bg=bg_colour).grid(column=0, row=row + key, padx=30,
-                                                                                pady=5)
-        Label(root, text=key, font="Arial 14 bold", bg=bg_colour).grid(column=1, row=row + key, padx=30, pady=5)
-        Label(root, text=duration_converter(value), font="Arial 14 bold", bg=bg_colour).grid(column=2, row=row + key,
-                                                                                             padx=30, pady=5)
+def rcaScreen(SIM_TIME_, machine_name, STANDBY_PERCENT_, STOP_PERCENT_, ):
+    root = Tk()
+    root.geometry("900x700")
+
+    bg_colour = '#D6EBFE'
+    root.configure(bg=bg_colour)
+    # scrollbar = Scrollbar(root)
+    # scrollbar.grid(row=0, rowspan=30, sticky=E, column=4)
+
+    # 1 - Title
+    Label(root, anchor=CENTER, text=machine_name + ' Efficiency Analysis', font="Arial 16 bold", bg='#4d94ff', pady=7).grid(row=0, sticky=EW, columnspan=5)
+    # Run Percentage
+    Label(root, text="Ποσοστό παραγωγής μηχανήματος: " + str(round(100 - (STANDBY_PERCENT_ + STOP_PERCENT_), 2))+'%', font="Arial 14", bg=bg_colour, pady=10).grid(row=3, sticky=W, columnspan=5)
+    # Production Time
+    Label(root, text="Χρόνος παραγωγής μηχανήματος:  " + duration_converter(((round(100 - (STANDBY_PERCENT_ + STOP_PERCENT_), 2))*SIM_TIME_)/100), font="Arial 14", bg=bg_colour, pady=10).grid(row=4, sticky=W, columnspan=5)
+    # MTBS
+    Label(root, text="MTBS (συνεχόμενος παραγωγικός χρόνος μέχρι το Stop):  ", font="Arial 14", bg=bg_colour, pady=10).grid(row=6, sticky=W, columnspan=5)
+
+    # 2 - Title RCA
+    Label(root, anchor=CENTER, text='Ανάλυση μη παραγωγικού χρόνου', font="Arial 16 bold", bg='#9DF4EB', pady=7).grid(row=8, sticky=EW, columnspan=5)
+
+    # RCA Title
+    Label(root, anchor=CENTER, text='Root Cause Analysis', font="Arial 16 bold", bg=bg_colour, pady=7).grid(row=9, sticky=EW, columnspan=5)
+
+    # Column Title
+    Label(root, text='ΜΗΧΑΝΗΜΑ', font="Arial 14 bold underline", bg=bg_colour).grid(column=0, row=10, padx=30)
+    Label(root, text='ΠΛΗΘΟΣ', font="Arial 14 bold underline", bg=bg_colour).grid(column=1, row=10, padx=30)
+    Label(root, text='ΔΙΑΡΚΕΙΑ', font="Arial 14 bold underline", bg=bg_colour).grid(column=2, row=10, padx=30)
+    Label(root, text='ΠΟΣΟΣΤΟ', font="Arial 14 bold underline", bg=bg_colour).grid(column=3, row=10, padx=30)
+
+    # Μην παραγωγικός χρόνος
+    Label(root, text='Συνολικός μη παραγωγικός χρόνος: '+, font="Arial 14", bg=bg_colour).grid(column=3, row=10, padx=30)
+    # RCA Table
+    Label(root, text='ΠΟΣΟΣΤΟ', font="Arial 13", bg=bg_colour).grid(column=3, row=12, padx=30)
 
 
-word_freq = {1: 5116, 2: 23454, 3: 4223, 4: 73238, 5: 143241}
+    # 3 - Title
+    # mylist = Listbox(root, yscrollcommand=scrollbar.set)
 
-# OEE + ' ('+str((produced_cans/(CANS_PER_HOUR * SHIFT * 8))*100)+'%)'
+    # Breakdowns Title
+    Label(root, anchor=CENTER, text="Stoppages Logs", font="Arial 16 bold", bg='#9DF4EB', pady=7).grid(row=15, sticky=EW, pady=40, columnspan=4)
+    Label(root, text='MACHINE', font="Arial 14 bold underline", bg=bg_colour).grid(column=0, row=16, padx=30)
+    Label(root, text='EVENT', font="Arial 14 bold underline", bg=bg_colour).grid(column=1, row=16, padx=30)
+    Label(root, text='TIMES', font="Arial 14 bold underline", bg=bg_colour).grid(column=2, row=16, padx=30)
+    Label(root, text='DURATION', font="Arial 14 bold underline", bg=bg_colour).grid(column=3, row=16, padx=30)
 
-breakdown(11, 'DEPALL', word_freq)
+    def breakdown(row, machine_name_, dictionary):
+        for key, value in dictionary.items():
+            Label(root, text=machine_name_, font="Arial 14 bold", bg=bg_colour).grid(column=0, row=row + key, padx=30, pady=5)
+            Label(root, text=key, font="Arial 14 bold", bg=bg_colour).grid(column=1, row=row + key, padx=30, pady=5)
+            Label(root, text=duration_converter(value), font="Arial 14 bold", bg=bg_colour).grid(column=2, row=row + key, padx=30, pady=5)
 
-breakdown(11 + 1 + int(len(word_freq)), 'FILLER', word_freq)
+    word_freq = {1: 5116, 2: 23454, 3: 4223, 4: 73238, 5: 143241}
+
+    # OEE + ' ('+str((produced_cans/(CANS_PER_HOUR * SHIFT * 8))*100)+'%)'
+
+    # mylist.grid(row=0, rowspan=30, sticky=W, column=4)
+    # scrollbar.config(command=mylist.yview)
+    breakdown(20, 'DEPALL', word_freq)
+
+    root.mainloop()
+
+
+# rcaScreen(10000, 'DEPALL', 20, 30)
 '''
