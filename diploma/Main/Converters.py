@@ -1,6 +1,6 @@
 # get_ipython().run_line_magic('matplotlib', 'qt')
 
-def duration_converter(total_ptime):
+def duration_converter_to_DHMS(total_ptime):
     if type(total_ptime) is dict:
         total_proc_time = sum(total_ptime.values())
     elif type(total_ptime) is list:
@@ -14,6 +14,33 @@ def duration_converter(total_ptime):
     seconds = int((total_proc_time % 3600) % 60)
     return '{:02d}d {:02d}h {:02d}m {:02d}s'.format(days, hours, minutes, seconds)
     # return '{:02d}:{:02d}:{:02d}:{:02d}'.format(days, hours, minutes, seconds)
+
+
+def duration_converter_to_M(total_ptime):
+    if type(total_ptime) is dict:
+        total_proc_time = sum(total_ptime.values())
+    elif type(total_ptime) is list:
+        total_proc_time = sum(total_ptime)
+    else:
+        total_proc_time = total_ptime
+
+    minutes = int(total_proc_time // 60)
+
+    return '{:02d} min'.format(minutes)
+
+
+# print(duration_converter_to_M(4000))
+
+
+def sum_converter(total_ptime):
+    if type(total_ptime) is dict:
+        total_proc_time = sum(total_ptime.values())
+    elif type(total_ptime) is list:
+        total_proc_time = sum(total_ptime)
+    else:
+        total_proc_time = total_ptime
+
+    return round(total_proc_time, 2)
 
 
 def double_time_print(stop_times):

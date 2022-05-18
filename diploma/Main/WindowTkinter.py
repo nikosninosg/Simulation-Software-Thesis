@@ -2,6 +2,7 @@ from tkinter import *
 from Converters import *
 from tkinter import messagebox
 from PIL import ImageTk, Image
+import time
 
 
 def displayNotification(txt):
@@ -337,6 +338,27 @@ def welcomeScreen():
 
 # v1, v2, v3, a, b, c = welcomeScreen()
 # print(v1, v2, v3, a, b, c)
+
+# DUR_WIN = []
+
+
+def break_duration_calc_window(env_now, BREAK_START_):
+    calc_window = Tk()
+    calc_window_colour = '#D6EBFE'
+    calc_window.title("Breakdown Duration")
+    calc_window.configure(bg=calc_window_colour)
+    calc_window.geometry('400x100')
+
+    dur_window = Label(calc_window, bg=calc_window_colour, relief=GROOVE, text='Break duration: ' + str(duration_converter_to_DHMS(env_now - BREAK_START_)), font="Arial 15 bold", fg='#BE0000')
+    dur_window.grid(row=1, column=0, pady=5, ipadx=30)
+
+    calc_window.mainloop()
+
+    time.sleep(10)
+    calc_window.destroy()
+
+    return dur_window
+
 
 '''
 def outroScreen(SIM_TIME_, PRODUCTION_SPEED_, PASTEUR_OUTPUT_, EXPECTED_CANS_, D_PERC_SB_, D_PERC_STOP_, F_PERC_SB_, F_PERC_STOP_, P_PERC_SB_, P_PERC_STOP_):

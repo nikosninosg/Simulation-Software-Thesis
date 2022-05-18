@@ -145,6 +145,8 @@ PASTEUR_STOP_DURATION = {}
 
 # ---Machine Breakdown---
 # Breakdown Probability
+BREAK_START = 0
+IN_BREAKDOWN = False
 MIN_PROB = 1
 MAX_PROB = 1000
 # Repair Time = Gauss Distribution
@@ -188,7 +190,7 @@ def auto_brake_machine():
         print("Auto breakdown mode enabled")
         while True:
             # CHECK PERIOD
-            yield env.timeout(100)
+            yield env.timeout(100)  # SOS
             # Depall Brake Probability
             if np.random.binomial(1, DEPALL_BRAKE_PROB/100) == 1 and not DEPALL_IS_BROKEN:
                 DEPALL_IS_BROKEN = True
@@ -211,7 +213,11 @@ def auto_brake_machine():
 def manual_break_and_repair_machine(machine_name):
     """Εντοπισμός σταματήματος σε μηχάνημα και έναρξη εργασίας επισκευής μηχανήματος"""
 
+    global BREAK_START, IN_BREAKDOWN
+
     if AUTO_BRAKE_VAR == 0:
+        IN_BREAKDOWN = True
+        BREAK_START = env.now
         # Set Status
         if machine_name == 'DEPALL':
             print("Depall break pressed")
@@ -447,7 +453,7 @@ def depall():
     """Διεργασία του μηχανήματος Depall"""
     global depall_status, depall_description, current_depall_level
     global DEPALL_RUN_DURATION, DEPALL_STOP_TIMES, DEPALL_STOP_DURATION, DEPALL_STOP_FLAG, DEPALL_IS_BROKEN
-    global FILLER_STANDBY_FLAG, PASTEUR_STANDBY_FLAG
+    global FILLER_STANDBY_FLAG, PASTEUR_STANDBY_FLAG, IN_BREAKDOWN
 
     while True:
         try:
@@ -520,6 +526,7 @@ def depall():
             # DEPALL_STOP_DURATION[DEPALL_STOP_TIMES] = finish_depall_break - start_depall_break
             DEPALL_STOP_DURATION[start_depall_break] = env.now - start_depall_break
             DEPALL_IS_BROKEN = False
+            IN_BREAKDOWN = False
 
 
 def filler():
@@ -709,8 +716,10 @@ def live_monitoring():
     """Live Simulation Monitoring"""
     global current_depall_level, current_filler_level, current_pasteur_level
     global DEPALL_STOP_FLAG, FILLER_STOP_FLAG, PASTEUR_STOP_FLAG
+    global BREAK_START
 
     window = Tk()
+    # window_colour = '#D6EBFE'
     window_colour = '#D6EBFE'
     window.title("Live Process Monitoring!")
     window.configure(bg=window_colour)
@@ -730,6 +739,10 @@ def live_monitoring():
     # Current Process Time
     pt = Label(window, bg='#6B8CD3', bd=4, height=2, justify=CENTER, relief=GROOVE, text='Elapsed Time: ' + str(round(env.now, 2)) + '  seconds', font="Arial 13 bold ")
     pt.grid(row=8, pady=25, columnspan=20)
+
+    # Breakdown Duration Calculator
+    DUR_WIN = Label(window, bg=window_colour, relief=GROOVE, text='Break duration: ' + str(duration_converter_to_DHMS(0)), font="Arial 15 bold", fg='#BE0000')
+    DUR_WIN.grid(row=8, columnspan=20, sticky=W, padx=340)
 
     # Image Depall
     imgD = ImageTk.PhotoImage(Image.open("images\\depall.png").resize((350, 260)))
@@ -754,17 +767,17 @@ def live_monitoring():
 
         return LB3, LB2, LB1
 
-    def current_conveyor_capacity_buffer(col, i_padx, current_level, machine_capacity, machine_description):
+    def current_conveyor_capacity_buffer(col, i_padx, bg_colour, current_level, machine_capacity, machine_description):
         """ Current level capacity status of conveyors """
         Label(window, text=machine_description, font="Arial 14", bg=window_colour, wraplength=140).grid(row=6, column=col, pady=0, sticky=S)
-        Label(window, text=str(current_level) + ' / ' + str(machine_capacity), relief=RIDGE, font="Arial 15 bold", justify=CENTER).grid(row=7, column=col, ipadx=i_padx, ipady=15)
+        Label(window, text=str(current_level) + ' / ' + str(machine_capacity), bg=bg_colour, relief=RIDGE, font="Arial 15 bold", justify=CENTER).grid(row=7, column=col, ipadx=i_padx, ipady=15)
 
-    def current_machine_buffer(col, i_padx, current_level, machine_capacity, machine_description):
+    def current_machine_buffer(col, i_padx, bg_colour, current_level, machine_capacity, machine_description):
         """ Current machine level capacity"""
         Label(window, text=machine_description, font="Arial 14", bg=window_colour).grid(row=6, column=col, pady=0, sticky=S)
-        Label(window, text=str(current_level) + ' / ' + str(machine_capacity), relief=RIDGE, font="Arial 15 bold", justify=CENTER).grid(row=7, column=col, pady=0, ipadx=i_padx, ipady=15)
+        Label(window, text=str(current_level) + ' / ' + str(machine_capacity), bg=bg_colour, relief=RIDGE, font="Arial 15 bold", justify=CENTER).grid(row=7, column=col, pady=0, ipadx=i_padx, ipady=15)
 
-    def var_change(machine):
+    def manual_repair_fun(machine):
         """ Flag for break machines """
         global DEPALL_STOP_FLAG, FILLER_STOP_FLAG, PASTEUR_STOP_FLAG
         if machine == 'DEPALL':
@@ -773,15 +786,15 @@ def live_monitoring():
             FILLER_STOP_FLAG = False
         elif machine == 'PASTEUR':
             PASTEUR_STOP_FLAG = False
-        print("var_change function")
+        print("Repair function")
 
-    def manual_brake(col, machine):
+    def manual_brake_button(col, machine):
         """ Machine Brake Button """
         if AUTO_BRAKE_VAR == 0:
             # Break Button
             Button(window, text='BREAK', command=partial(manual_break_and_repair_machine, machine), bg='#D97854', bd=4, font="Arial 13 bold", relief=RAISED, activebackground='#D97854').grid(row=5, column=col, sticky=W, pady=5, padx=100)
             # Repair Button
-            RB = Button(window, text='REPAIR', command=partial(var_change, machine), bg='#86D954', bd=4, font="Arial 13 bold", relief=RAISED, activebackground='#86D954')
+            RB = Button(window, text='REPAIR', command=partial(manual_repair_fun, machine), bg='#86D954', bd=4, font="Arial 13 bold", relief=RAISED, activebackground='#86D954')
             RB.grid(row=5, column=col, sticky=E, pady=5, padx=100)
             # return var
 
@@ -810,13 +823,13 @@ def live_monitoring():
 
     # Depall
     D_BL3, D_BL2, D_BL1 = machine_beacon(1, 'DEPALL')
-    manual_brake(1, 'DEPALL')
+    manual_brake_button(1, 'DEPALL')
     # Filler
     F_BL3, F_BL2, F_BL1 = machine_beacon(3, 'FILLER')
-    manual_brake(3, 'FILLER')
+    manual_brake_button(3, 'FILLER')
     # Pasteur
     P_BL3, P_BL2, P_BL1 = machine_beacon(5, 'PASTEUR')
-    manual_brake(5, 'PASTEUR')
+    manual_brake_button(5, 'PASTEUR')
 
     def beacon_status(status, BL3, BL2, BL1):
         if status == Status.green.name:
@@ -840,38 +853,60 @@ def live_monitoring():
         return '{:02d}:{:02d}:{:02d}:{:02d}'.format(days, hours, minutes, seconds)
         # return '{:02d}D {:02d}H {:02d}M {:02d}S'.format(days, hours, minutes, seconds)
 
+    def colour_palette_calc(current_level, capacity):
+        x = round((current_level*100)/capacity, 2)
+        colour_palette = {0: '#c2f0f0', 1: '#99e6e6', 2: '#70dbdb', 3: '#47d1d1', 4: '#2eb8b8'}
+        if 0 <= x < 20:
+            return colour_palette[0]
+        elif 20 <= x < 40:
+            return colour_palette[1]
+        elif 40 <= x < 60:
+            return colour_palette[2]
+        elif 60 <= x < 80:
+            return colour_palette[3]
+        elif 80 <= x <= 100:
+            return colour_palette[4]
+
     # Update Function for Live Monitoring
     def update():
         """ Update function for UI """
+
         if env.now <= SIM_TIME:
+
+            DUR_WIN['text'] = 'Break duration: ' + str(duration_converter_to_DHMS(0))
+            if AUTO_BRAKE_VAR == 0 and IN_BREAKDOWN:
+                # Break Duration Calculator
+                DUR_WIN['text'] = 'Break duration: ' + str(duration_converter_to_DHMS(env.now - BREAK_START))
+
             # KPIS(col, run_times, run_duration, run_percentage, standby_times, standby_duration, standby_percentage, stop_times, stop_duration, stop_percentage):
 
             # Raw Material - Depall
-            current_conveyor_capacity_buffer(0, 25, can_pack_line.emptyCans.level, depall_capacity, "Palet Cans Conveyor")
+            current_conveyor_capacity_buffer(0, 25, colour_palette_calc(can_pack_line.emptyCans.level, depall_capacity), can_pack_line.emptyCans.level, depall_capacity, "Palet Cans Conveyor")
 
             # Depall
-            current_machine_buffer(1, 125, current_depall_level, depall_batch, "Depall Capacity ")
-            kpis(1, double_time_print(DEPALL_STANDBY_TIMES+DEPALL_STOP_TIMES), duration_converter(DEPALL_RUN_DURATION), 0, double_time_print(DEPALL_STANDBY_TIMES),
-                 duration_converter(DEPALL_STANDBY_DURATION), 0, double_time_print(DEPALL_STOP_TIMES), duration_converter(DEPALL_STOP_DURATION), 0)
+
+            current_machine_buffer(1, 125, colour_palette_calc(current_depall_level, depall_batch), current_depall_level, depall_batch, "Depall Capacity ")
+            kpis(1, double_time_print(DEPALL_STANDBY_TIMES+DEPALL_STOP_TIMES), duration_converter_to_DHMS(DEPALL_RUN_DURATION), 0, double_time_print(DEPALL_STANDBY_TIMES),
+                 duration_converter_to_DHMS(DEPALL_STANDBY_DURATION), 0, double_time_print(DEPALL_STOP_TIMES), duration_converter_to_DHMS(DEPALL_STOP_DURATION), 0)
 
             # Depall - Filler conveyor
-            current_conveyor_capacity_buffer(2, 25, can_pack_line.depallCans.level, filler_capacity, "Depall Cans Conveyor")
+            current_conveyor_capacity_buffer(2, 25, colour_palette_calc(can_pack_line.depallCans.level, filler_capacity), can_pack_line.depallCans.level, filler_capacity, "Depall Cans Conveyor")
 
             # Filler
-            current_machine_buffer(3, 135, current_filler_level, filler_batch, "Filler Capacity")
-            kpis(3, double_time_print(FILLER_RUN_TIMES+FILLER_STOP_TIMES), duration_converter(FILLER_RUN_DURATION), 0, double_time_print(FILLER_STANDBY_TIMES),
-                 duration_converter(FILLER_STANDBY_DURATION), 0, double_time_print(FILLER_STOP_TIMES), duration_converter(FILLER_STOP_DURATION), 0)
+            current_machine_buffer(3, 135, colour_palette_calc(current_filler_level, filler_batch), current_filler_level, filler_batch, "Filler Capacity")
+            kpis(3, double_time_print(FILLER_RUN_TIMES+FILLER_STOP_TIMES), duration_converter_to_DHMS(FILLER_RUN_DURATION), 0, double_time_print(FILLER_STANDBY_TIMES),
+                 duration_converter_to_DHMS(FILLER_STANDBY_DURATION), 0, double_time_print(FILLER_STOP_TIMES), duration_converter_to_DHMS(FILLER_STOP_DURATION), 0)
 
             # Filler - Pasteur conveyor
-            current_conveyor_capacity_buffer(4, 25, can_pack_line.filledCans.level, pasteur_capacity, "Filled Cans Conveyor")
+            current_conveyor_capacity_buffer(4, 25, colour_palette_calc(can_pack_line.filledCans.level, pasteur_capacity), can_pack_line.filledCans.level, pasteur_capacity, "Filled Cans Conveyor")
 
             # Pasteur
-            current_machine_buffer(5, 115, current_pasteur_level, pasteur_batch, "Pasteur Capacity")
-            kpis(5, double_time_print(PASTEUR_RUN_TIMES+PASTEUR_STOP_TIMES), duration_converter(PASTEUR_RUN_DURATION), 0, double_time_print(PASTEUR_STANDBY_TIMES),
-                 duration_converter(PASTEUR_STANDBY_DURATION), 0, double_time_print(PASTEUR_STOP_TIMES), duration_converter(PASTEUR_STOP_DURATION), 0)
+            current_machine_buffer(5, 115, colour_palette_calc(current_pasteur_level, pasteur_batch), current_pasteur_level, pasteur_batch, "Pasteur Capacity")
+            kpis(5, double_time_print(PASTEUR_RUN_TIMES+PASTEUR_STOP_TIMES), duration_converter_to_DHMS(PASTEUR_RUN_DURATION), 0, double_time_print(PASTEUR_STANDBY_TIMES),
+                 duration_converter_to_DHMS(PASTEUR_STANDBY_DURATION), 0, double_time_print(PASTEUR_STOP_TIMES), duration_converter_to_DHMS(PASTEUR_STOP_DURATION), 0)
 
             # Pasteur - Next Machine conveyor
-            current_conveyor_capacity_buffer(6, 25, can_pack_line.pastCans.level, EXPECTED_CANS, "Pasteurised Conveyor")
+            current_conveyor_capacity_buffer(6, 25, colour_palette_calc(can_pack_line.pastCans.level, EXPECTED_CANS), can_pack_line.pastCans.level, EXPECTED_CANS, "Pasteurised Conveyor")
 
             # Beacon Status
             beacon_status(depall_status, D_BL3, D_BL2, D_BL1)
@@ -904,7 +939,7 @@ def outroScreen(D_PERC_SB_, D_PERC_STOP_, F_PERC_SB_, F_PERC_STOP_, P_PERC_SB_, 
     Label(root, anchor=CENTER, text='Δείκτες απόδοσης γραμμής', font="Arial 16 bold", bg='#4d94ff', pady=7).grid(row=0, sticky=EW, columnspan=5)
 
     # Total Time Simulation
-    Label(root, text="Συνολική Διάρκεια Simulation: " + str(duration_converter(SIM_TIME)), font="Arial 14", bg=bg_colour, pady=10).grid(row=1, sticky=W, columnspan=5, padx=30)
+    Label(root, text="Συνολική Διάρκεια Simulation: " + str(duration_converter_to_DHMS(SIM_TIME)), font="Arial 14", bg=bg_colour, pady=10).grid(row=1, sticky=W, columnspan=5, padx=30)
     # Production Speed
     Label(root, text="Ταχύτητα παραγωγής της γραμμής: " + str(PRODUCTION_SPEED) + " cans per second", font="Arial 14", bg=bg_colour, pady=10).grid(row=3, sticky=W, columnspan=5, padx=30)
     # Produced products
@@ -929,13 +964,13 @@ def outroScreen(D_PERC_SB_, D_PERC_STOP_, F_PERC_SB_, F_PERC_STOP_, P_PERC_SB_, 
         # Analysis Button
         if machine_name == 'DEPALL':
             Button(root, text=machine_name + ' Analysis', height=0, width=15, font="Arial 12 bold", bd='5', bg='light green',
-                   activebackground='cyan', command=lambda: rcaScreen(machine_name, D_PERC_SB_, D_PERC_STOP_)).grid(row=row, column=4, padx=0, pady=15, sticky=W)
+                   activebackground='cyan', command=lambda: additionalAnalysisScreen(machine_name, D_PERC_SB_, D_PERC_STOP_)).grid(row=row, column=4, padx=0, pady=15, sticky=W)
         elif machine_name == 'FILLER':
             Button(root, text=machine_name + ' Analysis', height=0, width=15, font="Arial 12 bold", bd='5', bg='light green',
-                   activebackground='cyan', command=lambda: rcaScreen(machine_name, F_PERC_SB_, F_PERC_STOP_)).grid(row=row, column=4, padx=0, pady=15, sticky=W)
+                   activebackground='cyan', command=lambda: additionalAnalysisScreen(machine_name, F_PERC_SB_, F_PERC_STOP_)).grid(row=row, column=4, padx=0, pady=15, sticky=W)
         elif machine_name == 'PASTEUR':
             Button(root, text=machine_name + ' Analysis', height=0, width=15, font="Arial 12 bold", bd='5', bg='light green',
-                   activebackground='cyan', command=lambda: rcaScreen(machine_name, P_PERC_SB_, P_PERC_STOP_)).grid(row=row, column=4, padx=0, pady=15, sticky=W)
+                   activebackground='cyan', command=lambda: additionalAnalysisScreen(machine_name, P_PERC_SB_, P_PERC_STOP_)).grid(row=row, column=4, padx=0, pady=15, sticky=W)
 
     # Depall
     # D_PERC_SB_ = machine_duration_conv_to_perc(D_PERC_SB_, SIM_TIME_)
@@ -953,7 +988,7 @@ def outroScreen(D_PERC_SB_, D_PERC_STOP_, F_PERC_SB_, F_PERC_STOP_, P_PERC_SB_, 
     root.mainloop()
 
 
-def rcaScreen(machine_name, STANDBY_PERCENT_, STOP_PERCENT_, ):
+def additionalAnalysisScreen(machine_name, STANDBY_PERCENT_, STOP_PERCENT_, ):
     """ Παράθυρο μηχανήματος για την ανάλυση 1.Efficiency, 2.RCA, 3.Stoppages """
     root = Tk()
     root.geometry("800x900")
@@ -966,7 +1001,7 @@ def rcaScreen(machine_name, STANDBY_PERCENT_, STOP_PERCENT_, ):
     # Run Percentage
     Label(root, text="Ποσοστό παραγωγής μηχανήματος: " + str(round(100 - (STANDBY_PERCENT_ + STOP_PERCENT_), 2))+'%', font="Arial 14", bg=bg_colour).grid(row=3, sticky=W, columnspan=5, padx=30, pady=5)
     # Production Time
-    Label(root, text="Χρόνος παραγωγής μηχανήματος:  " + duration_converter(((round(100 - (STANDBY_PERCENT_ + STOP_PERCENT_), 2))*SIM_TIME)/100), font="Arial 14", bg=bg_colour, pady=10).grid(row=4, sticky=W, columnspan=5, padx=30, pady=5)
+    Label(root, text="Χρόνος παραγωγής μηχανήματος:  " + duration_converter_to_DHMS(((round(100 - (STANDBY_PERCENT_ + STOP_PERCENT_), 2)) * SIM_TIME) / 100), font="Arial 14", bg=bg_colour, pady=10).grid(row=4, sticky=W, columnspan=5, padx=30, pady=5)
     # MTBS
     Label(root, text="MTBS (συνεχόμενος παραγωγικός χρόνος μέχρι το Stop): ", font="Arial 14", bg=bg_colour).grid(row=6, sticky=W, columnspan=5, padx=30, pady=5)
 
@@ -977,7 +1012,7 @@ def rcaScreen(machine_name, STANDBY_PERCENT_, STOP_PERCENT_, ):
         # Μην παραγωγικός χρόνος
         Label(root, text='Συνολικός μη παραγωγικός χρόνος: ', font="Arial 14", bg=bg_colour).grid(columnspan=10, row=row, sticky=W, padx=30, pady=5)
         Label(root, text='Συνολικό πλήθος standbys: ' + str(len(sb_dur)), font="Arial 14", bg=bg_colour).grid(columnspan=10, row=row + 1, sticky=W, padx=30, pady=5)
-        Label(root, text='Συνολική διάρκεια σε standbys: ' + str(duration_converter(sb_dur)), font="Arial 14", bg=bg_colour).grid(columnspan=10, row=row + 2, sticky=W, pady=5, padx=30)
+        Label(root, text='Συνολική διάρκεια σε standbys: ' + str(duration_converter_to_DHMS(sb_dur)), font="Arial 14", bg=bg_colour).grid(columnspan=10, row=row + 2, sticky=W, pady=5, padx=30)
 
     # RCA Title
     Label(root, anchor=CENTER, text='ROOT CAUSE ANALYSIS (RCA)', font="Arial 16 bold underline", bg=bg_colour, pady=7).grid(row=14, sticky=EW, columnspan=5)
@@ -988,11 +1023,42 @@ def rcaScreen(machine_name, STANDBY_PERCENT_, STOP_PERCENT_, ):
     Label(root, text='ΔΙΑΡΚΕΙΑ', font="Arial 14 bold underline", bg=bg_colour).grid(column=2, row=16, padx=30)
     Label(root, text='ΠΟΣΟΣΤΟ', font="Arial 14 bold underline", bg=bg_colour).grid(column=3, row=16, padx=30)
 
+    # Machine Names & Total
+    Label(root, text='Depall', font="Arial 14", bg=bg_colour).grid(column=0, row=17, pady=10)
+    Label(root, text='Filler', font="Arial 14", bg=bg_colour).grid(column=0, row=18, pady=10)
+    Label(root, text='Pasteur', font="Arial 14", bg=bg_colour).grid(column=0, row=19, pady=10)
+    Label(root, text='TOTAL', font="Arial 14 bold", bg=bg_colour).grid(column=0, row=20, pady=10)
+
     # RCA Table
-    Label(root, text='1', font="Arial 13", bg=bg_colour).grid(column=0, row=17, padx=30)
-    # 18
-    # 19
-    # 20
+    def RCA_Table(A, B, D, E1, G, H):
+        """ RCA TABLE """
+
+        B = sum_converter(B)
+        E1 = sum_converter(E1)
+        H = sum_converter(H)
+        J = A + D + G
+        K = B + E1 + H
+        C = round((B / K)*100, 2)
+        F = round((E1 / K) * 100, 2)
+        I = round((H / K) * 100, 2)
+        L = round(C + F + I, 2)
+
+        # Row 17 Depall
+        Label(root, text=str(A), font="Arial 13", bg=bg_colour).grid(column=1, row=17)
+        Label(root, text=duration_converter_to_M(B), font="Arial 13", bg=bg_colour).grid(column=2, row=17)
+        Label(root, text=str(C) + '%', font="Arial 13", bg=bg_colour).grid(column=3, row=17)
+        # Row 18 Filler
+        Label(root, text=str(D), font="Arial 13", bg=bg_colour).grid(column=1, row=18)
+        Label(root, text=duration_converter_to_M(E1), font="Arial 13", bg=bg_colour).grid(column=2, row=18)
+        Label(root, text=str(F) + '%', font="Arial 13", bg=bg_colour).grid(column=3, row=18)
+        # Row 19 Pasteur
+        Label(root, text=str(G), font="Arial 13", bg=bg_colour).grid(column=1, row=19)
+        Label(root, text=duration_converter_to_M(H), font="Arial 13", bg=bg_colour).grid(column=2, row=19)
+        Label(root, text=str(I) + '%', font="Arial 13", bg=bg_colour).grid(column=3, row=19)
+        # Row 20 Total
+        Label(root, text=str(J), font="Arial 13", bg=bg_colour).grid(column=1, row=20)
+        Label(root, text=duration_converter_to_M(K), font="Arial 13", bg=bg_colour).grid(column=2, row=20)
+        Label(root, text=str(L) + '%', font="Arial 13", bg=bg_colour).grid(column=3, row=20)
 
     # 3 - Stoppages Logs Title
 
@@ -1002,11 +1068,11 @@ def rcaScreen(machine_name, STANDBY_PERCENT_, STOP_PERCENT_, ):
     def stoppages_general_info(row, stops_num, stops_dur):
         stops_dur = sum(stops_dur.values())
         Label(root, text="Συνολικό πλήθος breakdowns: " + str(stops_num), font="Arial 14", bg=bg_colour).grid(columnspan=10, sticky=W, row=row, padx=30, pady=5)
-        Label(root, text="Συνολική διάρκεια breakdowns: " + str(duration_converter(stops_dur)), font="Arial 14", bg=bg_colour).grid(columnspan=10, sticky=W, row=row+1, padx=30, pady=5)
+        Label(root, text="Συνολική διάρκεια breakdowns: " + str(duration_converter_to_DHMS(stops_dur)), font="Arial 14", bg=bg_colour).grid(columnspan=10, sticky=W, row=row + 1, padx=30, pady=5)
         if stops_num == 0:
             stops_num = 1
-        Label(root, text="Μέση διάρκεια βλάβης: " + str(int((stops_dur/stops_num) % 3600 / 60)) + ' min', font="Arial 14", bg=bg_colour).grid(columnspan=10, sticky=W, row=row+2, padx=30, pady=5)
-        Label(root, text="MTBF (Μέσος όρος διάρκειας για τη παρουσίαση βλάβης): " + str(int(((SIM_TIME - stops_dur)/stops_num) % 3600 / 60)) + ' min', font="Arial 14", bg=bg_colour).grid(columnspan=10, sticky=W, row=row+3, padx=30, pady=5)
+        Label(root, text="Μέση διάρκεια βλάβης: " + str(int((stops_dur/stops_num) // 60)) + ' min', font="Arial 14", bg=bg_colour).grid(columnspan=10, sticky=W, row=row+2, padx=30, pady=5)
+        Label(root, text="MTBF (Μέσος όρος διάρκειας για τη παρουσίαση βλάβης): " + str(int(((SIM_TIME - stops_dur)/stops_num) // 60)) + ' min', font="Arial 14", bg=bg_colour).grid(columnspan=10, sticky=W, row=row+3, padx=30, pady=5)
 
     Label(root, text='MACHINE', font="Arial 14 bold underline", bg=bg_colour).grid(column=0, row=29, padx=30)
     Label(root, text='TIME', font="Arial 14 bold underline", bg=bg_colour).grid(column=1, row=29, padx=30)
@@ -1018,9 +1084,9 @@ def rcaScreen(machine_name, STANDBY_PERCENT_, STOP_PERCENT_, ):
         for key, value in dictionary.items():
             if i <= 10:
                 Label(root, text=machine_name_, font="Arial 14", bg=bg_colour).grid(column=0, row=row + i, padx=30, pady=5)
-                Label(root, text=duration_converter(key), font="Arial 14", bg=bg_colour).grid(column=1, row=row + i, padx=30, pady=5)
+                Label(root, text=duration_converter_to_DHMS(key), font="Arial 14", bg=bg_colour).grid(column=1, row=row + i, padx=30, pady=5)
                 Label(root, text='Stand By', font="Arial 14", bg=bg_colour).grid(column=2, row=row + i, padx=30)
-                Label(root, text=duration_converter(value), font="Arial 14", bg=bg_colour).grid(column=3, row=row + i, padx=30, pady=5)
+                Label(root, text=duration_converter_to_DHMS(value), font="Arial 14", bg=bg_colour).grid(column=3, row=row + i, padx=30, pady=5)
                 i += 1
             else:
                 continue
@@ -1031,25 +1097,28 @@ def rcaScreen(machine_name, STANDBY_PERCENT_, STOP_PERCENT_, ):
         i = 0
         for key, value in dictionary.items():
             Label(root, text=machine_name_, font="Arial 14", bg=bg_colour).grid(column=0, row=row + i, padx=30, pady=5)
-            Label(root, text=duration_converter(key), font="Arial 14", bg=bg_colour).grid(column=1, row=row + i, padx=30, pady=5)
+            Label(root, text=duration_converter_to_DHMS(key), font="Arial 14", bg=bg_colour).grid(column=1, row=row + i, padx=30, pady=5)
             Label(root, text='Stop', font="Arial 14", bg=bg_colour).grid(column=2, row=row + i, padx=30)
-            Label(root, text=duration_converter(value), font="Arial 14", bg=bg_colour).grid(column=3, row=row + i, padx=30, pady=5)
+            Label(root, text=duration_converter_to_DHMS(value), font="Arial 14", bg=bg_colour).grid(column=3, row=row + i, padx=30, pady=5)
             i += 1
 
     # OEE + ' ('+str((produced_cans/(CANS_PER_HOUR * SHIFT * 8))*100)+'%)'
 
     if machine_name == 'DEPALL':
         rca_general_info(9, DEPALL_STANDBY_DURATION)
+        RCA_Table(DEPALL_STOP_TIMES, DEPALL_STOP_DURATION, FILLER_STANDBY_TIMES, FILLER_STANDBY_DURATION, PASTEUR_STANDBY_TIMES, PASTEUR_STANDBY_DURATION)
         stoppages_general_info(25, DEPALL_STOP_TIMES, DEPALL_STOP_DURATION)
         sd = standbys_print(32, 'Depall', DEPALL_STANDBY_DURATION)
         breakdowns_print(sd+2, 'Depall', DEPALL_STOP_DURATION)
     elif machine_name == 'FILLER':
         rca_general_info(9, FILLER_STANDBY_DURATION)
+        RCA_Table(DEPALL_STANDBY_TIMES, DEPALL_STANDBY_DURATION, FILLER_STOP_TIMES, FILLER_STOP_DURATION, PASTEUR_STANDBY_TIMES, PASTEUR_STANDBY_DURATION)
         stoppages_general_info(25, FILLER_STOP_TIMES, FILLER_STOP_DURATION)
         sf = standbys_print(32, 'Filler', FILLER_STANDBY_DURATION)
         breakdowns_print(sf + 2, 'Filler', FILLER_STOP_DURATION)
     elif machine_name == 'PASTEUR':
         rca_general_info(9, PASTEUR_STANDBY_DURATION)
+        RCA_Table(DEPALL_STANDBY_TIMES, DEPALL_STANDBY_DURATION, FILLER_STANDBY_TIMES, FILLER_STANDBY_DURATION, PASTEUR_STOP_TIMES, PASTEUR_STOP_DURATION)
         stoppages_general_info(25, PASTEUR_STOP_TIMES, PASTEUR_STOP_DURATION)
         sp = standbys_print(32, 'Pasteur', PASTEUR_STANDBY_DURATION)
         breakdowns_print(sp + 2, 'Pasteur', PASTEUR_STOP_DURATION)
