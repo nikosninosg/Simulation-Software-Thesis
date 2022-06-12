@@ -23,13 +23,13 @@ check_csv()
 # -------------------------------------------------
 
 # Parameters
-# DEPALL_BRAKE_PROB, FILLER_BRAKE_PROB, PASTEUR_BRAKE_PROB, AUTO_BRAKE_VAR, HOURS, DT = welcomeScreen()
-AUTO_BRAKE_VAR = 0
+DEPALL_BRAKE_PROB, FILLER_BRAKE_PROB, PASTEUR_BRAKE_PROB, AUTO_BRAKE_VAR, HOURS, DT = welcomeScreen()
+# AUTO_BRAKE_VAR = 0
 # Ακρίβεια αποτελεσμάτων - παρακολούθησης | Ακρίβεια δευτερολέπτου
-DT = 100  # in seconds
+# DT = 100 # in seconds
 
 # SIMULATION RUN TIME
-HOURS = 2  # Simulation time in shifts
+# HOURS = 10  # Simulation time in shifts
 SIM_TIME = HOURS * 60 * 60  # Simulation time in seconds
 
 times = SIM_TIME / DT  # Num of rows in csv
@@ -179,7 +179,7 @@ class Status(Enum):
     red = "STOP"
 
 
-DEPALL_BRAKE_PROB = FILLER_BRAKE_PROB = PASTEUR_BRAKE_PROB = 10
+# DEPALL_BRAKE_PROB = FILLER_BRAKE_PROB = PASTEUR_BRAKE_PROB = 10
 
 
 def auto_brake_machine():
@@ -533,6 +533,8 @@ def filler():
     """Διεργασία του μηχανήματος Filler"""
     global filler_status, filler_description, current_filler_level
     global FILLER_STOP_FLAG, FILLER_RUN_DURATION, FILLER_STOP_TIMES, FILLER_STOP_DURATION, FILLER_IS_BROKEN, PASTEUR_STANDBY_FLAG
+    global IN_BREAKDOWN
+
     yield env.timeout(depall_ptime + 2)  # Ξεκινάει μετά απο Χ δευτερόλεπτα απο την έναρξη της παραγωγής
 
     while True:
@@ -598,6 +600,7 @@ def filler():
             # displayStop("Το Depall έχει τεθεί εκτός λειτουργίας (Status = RED).\n Αιτία: Φρακαρισμένη έξοδος.", env.now)
             # FILLER_STOP_DURATION[FILLER_STOP_TIMES] = finish_filler_break - start_filler_break
             FILLER_STOP_DURATION[start_filler_break] = env.now - start_filler_break
+            IN_BREAKDOWN = False
 
 
 threads = list()
@@ -607,6 +610,8 @@ def pasteur():
     """Διεργασία του μηχανήματος Pasteur"""
     global pasteur_status, pasteur_description, current_pasteur_level
     global PASTEUR_STOP_FLAG, PASTEUR_RUN_DURATION, PASTEUR_STOP_TIMES, PASTEUR_STOP_DURATION, PASTEUR_IS_BROKEN
+    global IN_BREAKDOWN
+
     yield env.timeout(depall_ptime + filler_ptime + 4)
 
     while True:
@@ -696,6 +701,7 @@ def pasteur():
 
             # PASTEUR_STOP_DURATION[PASTEUR_STOP_TIMES] = finish_pasteur_break - start_pasteur_break
             PASTEUR_STOP_DURATION[start_pasteur_break] = env.now - start_pasteur_break
+            IN_BREAKDOWN = False
 
 
 def status_monitoring():
@@ -1038,27 +1044,29 @@ def additionalAnalysisScreen(machine_name, STANDBY_PERCENT_, STOP_PERCENT_, ):
         H = sum_converter(H)
         J = A + D + G
         K = B + E1 + H
+        if K==0:
+            K = 1
         C = round((B / K)*100, 2)
         F = round((E1 / K) * 100, 2)
         I = round((H / K) * 100, 2)
         L = round(C + F + I, 2)
 
         # Row 17 Depall
-        Label(root, text=str(A), font="Arial 13", bg=bg_colour).grid(column=1, row=17)
-        Label(root, text=duration_converter_to_M(B), font="Arial 13", bg=bg_colour).grid(column=2, row=17)
-        Label(root, text=str(C) + '%', font="Arial 13", bg=bg_colour).grid(column=3, row=17)
+        Label(root, text=str(A), font="Arial 14", bg=bg_colour).grid(column=1, row=17)
+        Label(root, text=duration_converter_to_M(B), font="Arial 14", bg=bg_colour).grid(column=2, row=17)
+        Label(root, text=str(C) + '%', font="Arial 14", bg=bg_colour).grid(column=3, row=17)
         # Row 18 Filler
-        Label(root, text=str(D), font="Arial 13", bg=bg_colour).grid(column=1, row=18)
-        Label(root, text=duration_converter_to_M(E1), font="Arial 13", bg=bg_colour).grid(column=2, row=18)
-        Label(root, text=str(F) + '%', font="Arial 13", bg=bg_colour).grid(column=3, row=18)
+        Label(root, text=str(D), font="Arial 14", bg=bg_colour).grid(column=1, row=18)
+        Label(root, text=duration_converter_to_M(E1), font="Arial 14", bg=bg_colour).grid(column=2, row=18)
+        Label(root, text=str(F) + '%', font="Arial 14", bg=bg_colour).grid(column=3, row=18)
         # Row 19 Pasteur
-        Label(root, text=str(G), font="Arial 13", bg=bg_colour).grid(column=1, row=19)
-        Label(root, text=duration_converter_to_M(H), font="Arial 13", bg=bg_colour).grid(column=2, row=19)
-        Label(root, text=str(I) + '%', font="Arial 13", bg=bg_colour).grid(column=3, row=19)
+        Label(root, text=str(G), font="Arial 14", bg=bg_colour).grid(column=1, row=19)
+        Label(root, text=duration_converter_to_M(H), font="Arial 14", bg=bg_colour).grid(column=2, row=19)
+        Label(root, text=str(I) + '%', font="Arial 14", bg=bg_colour).grid(column=3, row=19)
         # Row 20 Total
-        Label(root, text=str(J), font="Arial 13", bg=bg_colour).grid(column=1, row=20)
-        Label(root, text=duration_converter_to_M(K), font="Arial 13", bg=bg_colour).grid(column=2, row=20)
-        Label(root, text=str(L) + '%', font="Arial 13", bg=bg_colour).grid(column=3, row=20)
+        Label(root, text=str(J), font="Arial 14", bg=bg_colour).grid(column=1, row=20)
+        Label(root, text=duration_converter_to_M(K), font="Arial 14", bg=bg_colour).grid(column=2, row=20)
+        Label(root, text=str(L) + '%', font="Arial 14", bg=bg_colour).grid(column=3, row=20)
 
     # 3 - Stoppages Logs Title
 
