@@ -1044,7 +1044,7 @@ def additionalAnalysisScreen(machine_name, STANDBY_PERCENT_, STOP_PERCENT_, ):
         H = sum_converter(H)
         J = A + D + G
         K = B + E1 + H
-        if K==0:
+        if K == 0:
             K = 1
         C = round((B / K)*100, 2)
         F = round((E1 / K) * 100, 2)
