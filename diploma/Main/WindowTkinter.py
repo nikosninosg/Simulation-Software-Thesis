@@ -241,8 +241,7 @@ def breakdownOption(sim_time_):
     # Position image
     label1.place(x=180, y=250)
 
-    res = messagebox.askyesno(title="Επιλογή Περίπτωσης Αποτυχίας",
-                              message='Θές να προκαλέσεις βλάβη σε κάποιο μηχάνημα? (Status = RED)')
+    res = messagebox.askyesno(title="Επιλογή Περίπτωσης Αποτυχίας", message='Θές να προκαλέσεις βλάβη σε κάποιο μηχάνημα? (Status = RED)')
 
     if res:
         root.destroy()
@@ -258,7 +257,7 @@ def breakdownOption(sim_time_):
 def welcomeScreen():
     """Welcome Screen"""
     root = Tk()
-    root.geometry("1000x650")
+    root.geometry("1050x650")
     bg_colour = '#DEF9FB'
     root.configure(bg=bg_colour)
 
@@ -325,7 +324,7 @@ def welcomeScreen():
     # Entry(root, bd=4, textvariable=manual_sim_time, font="Arial 13 bold").grid(row=5, padx=230, sticky=E)
 
     # Close Button
-    Button(root, text='Start Simulation', height=2, width=15, font="Arial 15 bold ", bd='5', bg='light green', activebackground='cyan', command=root.destroy).grid(row=3, rowspan=2, column=4, padx=100, pady=30, sticky=E)
+    Button(root, text='Έναρξη Προσομοίωσης', height=2, width=19, font="Arial 15 bold ", bd='5', bg='light green', activebackground='cyan', command=root.destroy).grid(row=3, rowspan=2, column=4, padx=100, pady=30, sticky=E)
 
     root.mainloop()
     '''
@@ -460,7 +459,6 @@ def rcaScreen(SIM_TIME_, machine_name, STANDBY_PERCENT_, STOP_PERCENT_, ):
 
 
     # 3 - Title
-    # mylist = Listbox(root, yscrollcommand=scrollbar.set)
 
     # Breakdowns Title
     Label(root, anchor=CENTER, text="Stoppages Logs", font="Arial 16 bold", bg='#9DF4EB', pady=7).grid(row=15, sticky=EW, pady=40, columnspan=4)

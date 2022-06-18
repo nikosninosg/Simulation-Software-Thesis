@@ -962,7 +962,7 @@ def outroScreen(D_PERC_SB_, D_PERC_STOP_, F_PERC_SB_, F_PERC_STOP_, P_PERC_SB_, 
     Label(root, text='STAND_BY', font="Arial 14 bold underline", bg=bg_colour, fg='#ffff1a').grid(column=2, row=11, padx=30)
     Label(root, text='STOP', font="Arial 14 bold underline", bg=bg_colour, fg='#BE0000').grid(column=3, row=11, padx=30)
 
-    def percentage(row, machine_name, perc_run, perc_standby, perc_stop):
+    def percentage(row, machine_name, perc_run, perc_standby, perc_stop, MTBS):
         Label(root, text=machine_name, font="Arial 14", bg=bg_colour).grid(column=0, row=row, padx=30, pady=15)
         Label(root, text=str(perc_run)+'%', font="Arial 14", bg=bg_colour).grid(column=1, row=row, padx=30, pady=15)
         Label(root, text=str(perc_standby)+'%', font="Arial 14", bg=bg_colour).grid(column=2, row=row, padx=30, pady=15)
@@ -970,31 +970,31 @@ def outroScreen(D_PERC_SB_, D_PERC_STOP_, F_PERC_SB_, F_PERC_STOP_, P_PERC_SB_, 
         # Analysis Button
         if machine_name == 'DEPALL':
             Button(root, text=machine_name + ' Analysis', height=0, width=15, font="Arial 12 bold", bd='5', bg='light green',
-                   activebackground='cyan', command=lambda: additionalAnalysisScreen(machine_name, D_PERC_SB_, D_PERC_STOP_)).grid(row=row, column=4, padx=0, pady=15, sticky=W)
+                   activebackground='cyan', command=lambda: additionalAnalysisScreen(machine_name, D_PERC_SB_, D_PERC_STOP_, MTBS)).grid(row=row, column=4, padx=0, pady=15, sticky=W)
         elif machine_name == 'FILLER':
             Button(root, text=machine_name + ' Analysis', height=0, width=15, font="Arial 12 bold", bd='5', bg='light green',
-                   activebackground='cyan', command=lambda: additionalAnalysisScreen(machine_name, F_PERC_SB_, F_PERC_STOP_)).grid(row=row, column=4, padx=0, pady=15, sticky=W)
+                   activebackground='cyan', command=lambda: additionalAnalysisScreen(machine_name, F_PERC_SB_, F_PERC_STOP_, MTBS)).grid(row=row, column=4, padx=0, pady=15, sticky=W)
         elif machine_name == 'PASTEUR':
             Button(root, text=machine_name + ' Analysis', height=0, width=15, font="Arial 12 bold", bd='5', bg='light green',
-                   activebackground='cyan', command=lambda: additionalAnalysisScreen(machine_name, P_PERC_SB_, P_PERC_STOP_)).grid(row=row, column=4, padx=0, pady=15, sticky=W)
+                   activebackground='cyan', command=lambda: additionalAnalysisScreen(machine_name, P_PERC_SB_, P_PERC_STOP_, MTBS)).grid(row=row, column=4, padx=0, pady=15, sticky=W)
 
     # Depall
     # D_PERC_SB_ = machine_duration_conv_to_perc(D_PERC_SB_, SIM_TIME_)
     # D_PERC_STOP_ = machine_duration_conv_to_perc(D_PERC_STOP_, SIM_TIME_)
-    percentage(13, 'DEPALL', round(100 - (D_PERC_SB_ + D_PERC_STOP_), 2), D_PERC_SB_, D_PERC_STOP_)
+    percentage(13, 'DEPALL', round(100 - (D_PERC_SB_ + D_PERC_STOP_), 2), D_PERC_SB_, D_PERC_STOP_, (sum(DEPALL_RUN_DURATION)/3600) / DEPALL_RUN_TIMES)
     # Filler
     # F_PERC_SB_ = machine_duration_conv_to_perc(F_PERC_SB_, SIM_TIME_)
     # F_PERC_STOP_ = machine_duration_conv_to_perc(F_PERC_STOP_, SIM_TIME_)
-    percentage(14, 'FILLER', round(100 - (F_PERC_SB_ + F_PERC_STOP_), 2), F_PERC_SB_, F_PERC_STOP_)
+    percentage(14, 'FILLER', round(100 - (F_PERC_SB_ + F_PERC_STOP_), 2), F_PERC_SB_, F_PERC_STOP_, (sum(FILLER_RUN_DURATION)/3600) / FILLER_RUN_TIMES)
     # Pasteur
     # P_PERC_SB_ = machine_duration_conv_to_perc(P_PERC_SB_, SIM_TIME_)
     # P_PERC_STOP_ = machine_duration_conv_to_perc(P_PERC_STOP_, SIM_TIME_)
-    percentage(15, 'PASTEUR', round(100 - (P_PERC_SB_ + P_PERC_STOP_), 2), P_PERC_SB_, P_PERC_STOP_)
+    percentage(15, 'PASTEUR', round(100 - (P_PERC_SB_ + P_PERC_STOP_), 2), P_PERC_SB_, P_PERC_STOP_, (sum(PASTEUR_RUN_DURATION)/3600) / PASTEUR_RUN_TIMES)
 
     root.mainloop()
 
 
-def additionalAnalysisScreen(machine_name, STANDBY_PERCENT_, STOP_PERCENT_, ):
+def additionalAnalysisScreen(machine_name, STANDBY_PERCENT_, STOP_PERCENT_, MTBS):
     """ Παράθυρο μηχανήματος για την ανάλυση 1.Efficiency, 2.RCA, 3.Stoppages """
     root = Tk()
     root.geometry("800x900")
@@ -1009,14 +1009,14 @@ def additionalAnalysisScreen(machine_name, STANDBY_PERCENT_, STOP_PERCENT_, ):
     # Production Time
     Label(root, text="Χρόνος παραγωγής μηχανήματος:  " + duration_converter_to_DHMS(((round(100 - (STANDBY_PERCENT_ + STOP_PERCENT_), 2)) * SIM_TIME) / 100), font="Arial 14", bg=bg_colour, pady=10).grid(row=4, sticky=W, columnspan=5, padx=30, pady=5)
     # MTBS
-    Label(root, text="MTBS (συνεχόμενος παραγωγικός χρόνος μέχρι το Stop): ", font="Arial 14", bg=bg_colour).grid(row=6, sticky=W, columnspan=5, padx=30, pady=5)
+    Label(root, text="MTBS (συνεχόμενος παραγωγικός χρόνος μέχρι το Stop): " + str(round(MTBS, 2)) + ' hours', font="Arial 14", bg=bg_colour).grid(row=6, sticky=W, columnspan=5, padx=30, pady=5)
 
     # 2 - Title RCA
     Label(root, anchor=CENTER, text='Ανάλυση μη παραγωγικού χρόνου', font="Arial 16 bold", bg='#9DF4EB', pady=7).grid(row=8, sticky=EW, columnspan=5)
 
-    def rca_general_info(row, sb_dur):
+    def rca_general_info(row, sb_dur, non_prod_time):
         # Μην παραγωγικός χρόνος
-        Label(root, text='Συνολικός μη παραγωγικός χρόνος: ', font="Arial 14", bg=bg_colour).grid(columnspan=10, row=row, sticky=W, padx=30, pady=5)
+        Label(root, text='Συνολικός μη παραγωγικός χρόνος: ' + str(non_prod_time), font="Arial 14", bg=bg_colour).grid(columnspan=10, row=row, sticky=W, padx=30, pady=5)
         Label(root, text='Συνολικό πλήθος standbys: ' + str(len(sb_dur)), font="Arial 14", bg=bg_colour).grid(columnspan=10, row=row + 1, sticky=W, padx=30, pady=5)
         Label(root, text='Συνολική διάρκεια σε standbys: ' + str(duration_converter_to_DHMS(sb_dur)), font="Arial 14", bg=bg_colour).grid(columnspan=10, row=row + 2, sticky=W, pady=5, padx=30)
 
@@ -1068,6 +1068,8 @@ def additionalAnalysisScreen(machine_name, STANDBY_PERCENT_, STOP_PERCENT_, ):
         Label(root, text=duration_converter_to_M(K), font="Arial 14", bg=bg_colour).grid(column=2, row=20)
         Label(root, text=str(L) + '%', font="Arial 14", bg=bg_colour).grid(column=3, row=20)
 
+        return duration_converter_to_DHMS(K)
+
     # 3 - Stoppages Logs Title
 
     # Breakdowns Title
@@ -1113,19 +1115,19 @@ def additionalAnalysisScreen(machine_name, STANDBY_PERCENT_, STOP_PERCENT_, ):
     # OEE + ' ('+str((produced_cans/(CANS_PER_HOUR * SHIFT * 8))*100)+'%)'
 
     if machine_name == 'DEPALL':
-        rca_general_info(9, DEPALL_STANDBY_DURATION)
+        rca_general_info(9, DEPALL_STANDBY_DURATION, RCA_Table(DEPALL_STOP_TIMES, DEPALL_STOP_DURATION, FILLER_STANDBY_TIMES, FILLER_STANDBY_DURATION, PASTEUR_STANDBY_TIMES, PASTEUR_STANDBY_DURATION))
         RCA_Table(DEPALL_STOP_TIMES, DEPALL_STOP_DURATION, FILLER_STANDBY_TIMES, FILLER_STANDBY_DURATION, PASTEUR_STANDBY_TIMES, PASTEUR_STANDBY_DURATION)
         stoppages_general_info(25, DEPALL_STOP_TIMES, DEPALL_STOP_DURATION)
         sd = standbys_print(32, 'Depall', DEPALL_STANDBY_DURATION)
         breakdowns_print(sd+2, 'Depall', DEPALL_STOP_DURATION)
     elif machine_name == 'FILLER':
-        rca_general_info(9, FILLER_STANDBY_DURATION)
+        rca_general_info(9, FILLER_STANDBY_DURATION, RCA_Table(DEPALL_STANDBY_TIMES, DEPALL_STANDBY_DURATION, FILLER_STOP_TIMES, FILLER_STOP_DURATION, PASTEUR_STANDBY_TIMES, PASTEUR_STANDBY_DURATION))
         RCA_Table(DEPALL_STANDBY_TIMES, DEPALL_STANDBY_DURATION, FILLER_STOP_TIMES, FILLER_STOP_DURATION, PASTEUR_STANDBY_TIMES, PASTEUR_STANDBY_DURATION)
         stoppages_general_info(25, FILLER_STOP_TIMES, FILLER_STOP_DURATION)
         sf = standbys_print(32, 'Filler', FILLER_STANDBY_DURATION)
         breakdowns_print(sf + 2, 'Filler', FILLER_STOP_DURATION)
     elif machine_name == 'PASTEUR':
-        rca_general_info(9, PASTEUR_STANDBY_DURATION)
+        rca_general_info(9, PASTEUR_STANDBY_DURATION, RCA_Table(DEPALL_STANDBY_TIMES, DEPALL_STANDBY_DURATION, FILLER_STANDBY_TIMES, FILLER_STANDBY_DURATION, PASTEUR_STOP_TIMES, PASTEUR_STOP_DURATION))
         RCA_Table(DEPALL_STANDBY_TIMES, DEPALL_STANDBY_DURATION, FILLER_STANDBY_TIMES, FILLER_STANDBY_DURATION, PASTEUR_STOP_TIMES, PASTEUR_STOP_DURATION)
         stoppages_general_info(25, PASTEUR_STOP_TIMES, PASTEUR_STOP_DURATION)
         sp = standbys_print(32, 'Pasteur', PASTEUR_STANDBY_DURATION)
@@ -1140,6 +1142,8 @@ random.seed(RANDOM_SEED)  # Reproducing the results
 
 # Environment Setup
 env = simpy.Environment()
+# Real Time Environment
+# env = simpy.RealtimeEnvironment()
 can_pack_line = CanPackLine()
 
 threading.Thread(target=live_monitoring).start()
